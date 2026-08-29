@@ -1,0 +1,13 @@
+<script setup>
+defineProps({
+  soft: { type: Boolean, default: false },
+})
+</script>
+
+<template>
+  <hr
+    role="presentation"
+    class="w-full border-t"
+    :class="soft ? 'border-zinc-950/5 dark:border-white/5' : 'border-zinc-950/10 dark:border-white/10'"
+  />
+</template>

@@ -5,9 +5,7 @@ import api from '@/lib/api'
 import { STALE } from '@/lib/queryClient'
 import { useToast } from '@/composables/useToast'
 import { humanize } from '@/lib/format'
-import BaseButton from '@/components/ui/BaseButton.vue'
-import BaseModal from '@/components/ui/BaseModal.vue'
-import FormField from '@/components/ui/FormField.vue'
+import { Button, Dialog, Field, Input, Select, Textarea } from '@/components/catalyst'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -108,86 +106,86 @@ function onSubmit() {
 </script>
 
 <template>
-  <BaseModal :open="open" :title="contact ? 'Edit contact' : 'New contact'" @close="emit('close')">
+  <Dialog :open="open" :title="contact ? 'Edit contact' : 'New contact'" size="3xl" @close="emit('close')">
     <form id="contact-form" class="space-y-4" novalidate @submit.prevent="onSubmit">
       <div class="grid gap-4 sm:grid-cols-2">
-        <FormField v-slot="{ id, invalid }" label="First name" :error="errors.first_name?.[0]" required>
-          <input :id="id" v-model="form.first_name" type="text" class="field-input" required :aria-invalid="invalid" />
-        </FormField>
+        <Field label="First name" :error="errors.first_name?.[0]" required>
+          <Input v-model="form.first_name" type="text" required />
+        </Field>
 
-        <FormField v-slot="{ id, invalid }" label="Last name" :error="errors.last_name?.[0]" required>
-          <input :id="id" v-model="form.last_name" type="text" class="field-input" required :aria-invalid="invalid" />
-        </FormField>
+        <Field label="Last name" :error="errors.last_name?.[0]" required>
+          <Input v-model="form.last_name" type="text" required />
+        </Field>
 
-        <FormField v-slot="{ id, invalid }" label="Email" :error="errors.email?.[0]">
-          <input :id="id" v-model="form.email" type="email" class="field-input" :aria-invalid="invalid" />
-        </FormField>
+        <Field label="Email" :error="errors.email?.[0]">
+          <Input v-model="form.email" type="email" />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Job title" :error="errors.job_title?.[0]">
-          <input :id="id" v-model="form.job_title" type="text" class="field-input" />
-        </FormField>
+        <Field label="Job title" :error="errors.job_title?.[0]">
+          <Input v-model="form.job_title" type="text" />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Phone" :error="errors.phone?.[0]">
-          <input :id="id" v-model="form.phone" type="tel" class="field-input" />
-        </FormField>
+        <Field label="Phone" :error="errors.phone?.[0]">
+          <Input v-model="form.phone" type="tel" />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Mobile" :error="errors.mobile?.[0]">
-          <input :id="id" v-model="form.mobile" type="tel" class="field-input" />
-        </FormField>
+        <Field label="Mobile" :error="errors.mobile?.[0]">
+          <Input v-model="form.mobile" type="tel" />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Company" :error="errors.company_id?.[0]">
-          <select :id="id" v-model="form.company_id" class="field-input">
+        <Field label="Company" :error="errors.company_id?.[0]">
+          <Select v-model="form.company_id">
             <option value="">No company</option>
             <option v-for="company in companies ?? []" :key="company.id" :value="company.id">{{ company.name }}</option>
-          </select>
-        </FormField>
+          </Select>
+        </Field>
 
-        <FormField v-slot="{ id }" label="Owner" :error="errors.owner_id?.[0]">
-          <select :id="id" v-model="form.owner_id" class="field-input">
+        <Field label="Owner" :error="errors.owner_id?.[0]">
+          <Select v-model="form.owner_id">
             <option value="">Unassigned</option>
             <option v-for="person in users ?? []" :key="person.id" :value="person.id">{{ person.name }}</option>
-          </select>
-        </FormField>
+          </Select>
+        </Field>
 
-        <FormField v-slot="{ id }" label="Lifecycle stage" :error="errors.lifecycle_stage?.[0]">
-          <select :id="id" v-model="form.lifecycle_stage" class="field-input">
+        <Field label="Lifecycle stage" :error="errors.lifecycle_stage?.[0]">
+          <Select v-model="form.lifecycle_stage">
             <option v-for="stage in LIFECYCLE_STAGES" :key="stage" :value="stage">{{ humanize(stage) }}</option>
-          </select>
-        </FormField>
+          </Select>
+        </Field>
 
-        <FormField v-slot="{ id }" label="Lead status" :error="errors.lead_status?.[0]">
-          <select :id="id" v-model="form.lead_status" class="field-input">
+        <Field label="Lead status" :error="errors.lead_status?.[0]">
+          <Select v-model="form.lead_status">
             <option v-for="status in LEAD_STATUSES" :key="status" :value="status">{{ humanize(status) }}</option>
-          </select>
-        </FormField>
+          </Select>
+        </Field>
 
-        <FormField v-slot="{ id }" label="Lead score" :error="errors.lead_score?.[0]" hint="0–100">
-          <input :id="id" v-model.number="form.lead_score" type="number" min="0" max="100" class="field-input" />
-        </FormField>
+        <Field label="Lead score" :error="errors.lead_score?.[0]" description="0–100">
+          <Input v-model.number="form.lead_score" type="number" min="0" max="100"  />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Source" :error="errors.source?.[0]">
-          <input :id="id" v-model="form.source" type="text" class="field-input" />
-        </FormField>
+        <Field label="Source" :error="errors.source?.[0]">
+          <Input v-model="form.source" type="text" />
+        </Field>
 
-        <FormField v-slot="{ id }" label="City" :error="errors.city?.[0]">
-          <input :id="id" v-model="form.city" type="text" class="field-input" />
-        </FormField>
+        <Field label="City" :error="errors.city?.[0]">
+          <Input v-model="form.city" type="text" />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Country" :error="errors.country?.[0]">
-          <input :id="id" v-model="form.country" type="text" class="field-input" />
-        </FormField>
+        <Field label="Country" :error="errors.country?.[0]">
+          <Input v-model="form.country" type="text" />
+        </Field>
       </div>
 
-      <FormField v-slot="{ id }" label="Notes" :error="errors.notes?.[0]">
-        <textarea :id="id" v-model="form.notes" rows="3" class="field-input"></textarea>
-      </FormField>
+      <Field label="Notes" :error="errors.notes?.[0]">
+        <Textarea v-model="form.notes" :rows="3" />
+      </Field>
     </form>
 
-    <template #footer>
-      <BaseButton variant="secondary" @click="emit('close')">Cancel</BaseButton>
-      <BaseButton type="submit" form="contact-form" :loading="mutation.isPending.value">
+    <template #actions>
+      <Button outline @click="emit('close')">Cancel</Button>
+      <Button type="submit" form="contact-form" :loading="mutation.isPending.value">
         {{ contact ? 'Save changes' : 'Create contact' }}
-      </BaseButton>
+      </Button>
     </template>
-  </BaseModal>
+  </Dialog>
 </template>

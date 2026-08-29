@@ -4,9 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import api from '@/lib/api'
 import { STALE } from '@/lib/queryClient'
 import { useToast } from '@/composables/useToast'
-import BaseButton from '@/components/ui/BaseButton.vue'
-import BaseModal from '@/components/ui/BaseModal.vue'
-import FormField from '@/components/ui/FormField.vue'
+import { Button, Dialog, Field, Input, Select, Textarea } from '@/components/catalyst'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -118,73 +116,73 @@ const mutation = useMutation({
 </script>
 
 <template>
-  <BaseModal :open="open" :title="deal ? 'Edit deal' : 'New deal'" @close="emit('close')">
+  <Dialog :open="open" :title="deal ? 'Edit deal' : 'New deal'" size="2xl" @close="emit('close')">
     <form id="deal-form" class="space-y-4" novalidate @submit.prevent="mutation.mutate({ ...form })">
-      <FormField v-slot="{ id, invalid }" label="Deal name" :error="errors.name?.[0]" required>
-        <input :id="id" v-model="form.name" type="text" class="field-input" required :aria-invalid="invalid" />
-      </FormField>
+      <Field label="Deal name" :error="errors.name?.[0]" required>
+        <Input v-model="form.name" type="text"  required />
+      </Field>
 
       <div class="grid gap-4 sm:grid-cols-2">
-        <FormField v-slot="{ id }" label="Pipeline" :error="errors.pipeline_id?.[0]" required>
-          <select :id="id" v-model="form.pipeline_id" class="field-input" required>
+        <Field label="Pipeline" :error="errors.pipeline_id?.[0]" required>
+          <Select v-model="form.pipeline_id">
             <option v-for="p in pipelines ?? []" :key="p.id" :value="p.id">{{ p.name }}</option>
-          </select>
-        </FormField>
+          </Select>
+        </Field>
 
-        <FormField v-slot="{ id }" label="Stage" :error="errors.pipeline_stage_id?.[0]" required>
-          <select :id="id" v-model="form.pipeline_stage_id" class="field-input" required>
+        <Field label="Stage" :error="errors.pipeline_stage_id?.[0]" required>
+          <Select v-model="form.pipeline_stage_id">
             <option v-for="s in stages" :key="s.id" :value="s.id">{{ s.name }}</option>
-          </select>
-        </FormField>
+          </Select>
+        </Field>
 
-        <FormField v-slot="{ id }" label="Amount" :error="errors.amount?.[0]">
-          <input :id="id" v-model.number="form.amount" type="number" min="0" step="0.01" class="field-input" />
-        </FormField>
+        <Field label="Amount" :error="errors.amount?.[0]">
+          <Input v-model.number="form.amount" type="number" min="0" step="0.01"  />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Currency" :error="errors.currency?.[0]">
-          <input :id="id" v-model="form.currency" type="text" maxlength="3" class="field-input uppercase" />
-        </FormField>
+        <Field label="Currency" :error="errors.currency?.[0]">
+          <Input v-model="form.currency" type="text" maxlength="3"  />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Company" :error="errors.company_id?.[0]">
-          <select :id="id" v-model="form.company_id" class="field-input">
+        <Field label="Company" :error="errors.company_id?.[0]">
+          <Select v-model="form.company_id">
             <option value="">No company</option>
             <option v-for="c in companies ?? []" :key="c.id" :value="c.id">{{ c.name }}</option>
-          </select>
-        </FormField>
+          </Select>
+        </Field>
 
-        <FormField v-slot="{ id }" label="Primary contact" :error="errors.contact_id?.[0]">
-          <select :id="id" v-model="form.contact_id" class="field-input">
+        <Field label="Primary contact" :error="errors.contact_id?.[0]">
+          <Select v-model="form.contact_id">
             <option value="">No contact</option>
             <option v-for="c in contacts ?? []" :key="c.id" :value="c.id">{{ c.full_name }}</option>
-          </select>
-        </FormField>
+          </Select>
+        </Field>
 
-        <FormField v-slot="{ id }" label="Owner" :error="errors.owner_id?.[0]">
-          <select :id="id" v-model="form.owner_id" class="field-input">
+        <Field label="Owner" :error="errors.owner_id?.[0]">
+          <Select v-model="form.owner_id">
             <option value="">Unassigned</option>
             <option v-for="u in users ?? []" :key="u.id" :value="u.id">{{ u.name }}</option>
-          </select>
-        </FormField>
+          </Select>
+        </Field>
 
-        <FormField v-slot="{ id }" label="Expected close date" :error="errors.expected_close_date?.[0]">
-          <input :id="id" v-model="form.expected_close_date" type="date" class="field-input" />
-        </FormField>
+        <Field label="Expected close date" :error="errors.expected_close_date?.[0]">
+          <Input v-model="form.expected_close_date" type="date"  />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Source" :error="errors.source?.[0]">
-          <input :id="id" v-model="form.source" type="text" class="field-input" />
-        </FormField>
+        <Field label="Source" :error="errors.source?.[0]">
+          <Input v-model="form.source" type="text"  />
+        </Field>
       </div>
 
-      <FormField v-slot="{ id }" label="Description" :error="errors.description?.[0]">
-        <textarea :id="id" v-model="form.description" rows="3" class="field-input"></textarea>
-      </FormField>
+      <Field label="Description" :error="errors.description?.[0]">
+        <Textarea v-model="form.description" :rows="3" />
+      </Field>
     </form>
 
-    <template #footer>
-      <BaseButton variant="secondary" @click="emit('close')">Cancel</BaseButton>
-      <BaseButton type="submit" form="deal-form" :loading="mutation.isPending.value">
+    <template #actions>
+      <Button outline @click="emit('close')">Cancel</Button>
+      <Button type="submit" form="deal-form" :loading="mutation.isPending.value">
         {{ deal ? 'Save changes' : 'Create deal' }}
-      </BaseButton>
+      </Button>
     </template>
-  </BaseModal>
+  </Dialog>
 </template>

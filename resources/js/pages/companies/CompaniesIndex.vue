@@ -2,20 +2,21 @@
 import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import { PlusIcon } from '@heroicons/vue/16/solid'
 import api from '@/lib/api'
 import { useResourceList } from '@/composables/useResourceList'
 import { useAuth } from '@/composables/useAuth'
 import { useToast } from '@/composables/useToast'
 import { formatCurrency } from '@/lib/format'
-import BaseBadge from '@/components/ui/BaseBadge.vue'
-import BaseButton from '@/components/ui/BaseButton.vue'
-import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
-import DataPagination from '@/components/ui/DataPagination.vue'
-import SearchInput from '@/components/ui/SearchInput.vue'
-import SortableTh from '@/components/ui/SortableTh.vue'
-import StateBlock from '@/components/ui/StateBlock.vue'
+import PageHeader from '@/components/crm/PageHeader.vue'
+import SearchField from '@/components/crm/SearchField.vue'
+import SortHeader from '@/components/crm/SortHeader.vue'
 import OwnerChip from '@/components/crm/OwnerChip.vue'
 import CompanyFormModal from './CompanyFormModal.vue'
+import {
+  Alert, Badge, Button, Divider, EmptyState, Pagination, Select,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/catalyst'
 
 const { can } = useAuth()
 const toast = useToast()
@@ -50,119 +51,114 @@ const restore = useMutation({
 </script>
 
 <template>
-  <div class="space-y-4">
-    <header class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 class="text-xl font-semibold text-slate-900">Companies</h1>
-        <p class="text-sm text-slate-500">Accounts and the people inside them.</p>
-      </div>
-      <BaseButton v-if="can('companies.create')" @click="editing = null; formOpen = true">New company</BaseButton>
-    </header>
-
-    <div class="card">
-      <div class="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SearchInput v-model="state.search" label="companies" placeholder="Search name, domain, industry…" />
-        <select v-model="state.filters.trashed" class="field-input" aria-label="Filter by deleted state">
-          <option value="">Active only</option>
-          <option value="with">Include deleted</option>
-          <option value="only">Deleted only</option>
-        </select>
-        <BaseButton variant="secondary" @click="resetFilters">Clear filters</BaseButton>
-      </div>
-
-      <StateBlock v-if="query.isPending.value" variant="loading" title="Loading companies…" />
-
-      <StateBlock
-        v-else-if="query.isError.value"
-        variant="error"
-        title="Couldn't load companies"
-        :message="query.error.value?.message"
-      >
-        <BaseButton size="sm" @click="query.refetch()">Try again</BaseButton>
-      </StateBlock>
-
-      <StateBlock v-else-if="isEmpty" title="No companies found" message="Adjust your filters or add an account.">
-        <BaseButton v-if="can('companies.create')" size="sm" @click="editing = null; formOpen = true">New company</BaseButton>
-      </StateBlock>
-
-      <template v-else>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-slate-200">
-            <thead class="bg-slate-50">
-              <tr>
-                <SortableTh field="name" label="Company" :sort="state.sort" @sort="setSort" />
-                <SortableTh field="industry" label="Industry" :sort="state.sort" @sort="setSort" />
-                <th scope="col" class="table-head">Contacts</th>
-                <th scope="col" class="table-head">Deals</th>
-                <SortableTh field="annual_revenue" label="Revenue" :sort="state.sort" @sort="setSort" />
-                <th scope="col" class="table-head">Owner</th>
-                <th scope="col" class="table-head"><span class="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-
-            <tbody class="divide-y divide-slate-100 bg-white">
-              <tr
-                v-for="company in rows"
-                :key="company.id"
-                class="hover:bg-slate-50"
-                :class="company.audit.is_deleted ? 'opacity-60' : ''"
-              >
-                <td class="table-cell">
-                  <RouterLink :to="`/companies/${company.id}`" class="font-medium text-indigo-600 hover:underline">
-                    {{ company.name }}
-                  </RouterLink>
-                  <span v-if="company.audit.is_deleted" class="ml-2"><BaseBadge tone="red">Deleted</BaseBadge></span>
-                  <p class="text-xs text-slate-500">{{ company.domain ?? '—' }}</p>
-                </td>
-                <td class="table-cell">{{ company.industry ?? '—' }}</td>
-                <td class="table-cell tabular-nums">{{ company.contacts_count ?? 0 }}</td>
-                <td class="table-cell tabular-nums">{{ company.deals_count ?? 0 }}</td>
-                <td class="table-cell tabular-nums">{{ company.annual_revenue ? formatCurrency(company.annual_revenue) : '—' }}</td>
-                <td class="table-cell"><OwnerChip :owner="company.owner" /></td>
-                <td class="table-cell text-right">
-                  <div class="flex justify-end gap-1">
-                    <BaseButton
-                      v-if="!company.audit.is_deleted && can('companies.update')"
-                      variant="ghost"
-                      size="sm"
-                      @click="editing = company; formOpen = true"
-                    >
-                      Edit
-                    </BaseButton>
-                    <BaseButton
-                      v-if="!company.audit.is_deleted && can('companies.delete')"
-                      variant="ghost"
-                      size="sm"
-                      @click="pendingDelete = company"
-                    >
-                      Delete
-                    </BaseButton>
-                    <BaseButton
-                      v-if="company.audit.is_deleted && can('companies.restore')"
-                      variant="ghost"
-                      size="sm"
-                      :loading="restore.isPending.value"
-                      @click="restore.mutate(company)"
-                    >
-                      Restore
-                    </BaseButton>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <DataPagination :meta="meta" :fetching="query.isFetching.value" @change="setPage" />
+  <div>
+    <PageHeader title="Companies" description="Accounts and the people inside them.">
+      <template #actions>
+        <Button v-if="can('companies.create')" @click="editing = null; formOpen = true">
+          <PlusIcon class="size-4" aria-hidden="true" />
+          New company
+        </Button>
       </template>
+    </PageHeader>
+
+    <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <SearchField v-model="state.search" label="Search companies" placeholder="Search name, domain, industry…" />
+      <Select v-model="state.filters.trashed" aria-label="Filter by deleted state">
+        <option value="">Active only</option>
+        <option value="with">Include deleted</option>
+        <option value="only">Deleted only</option>
+      </Select>
+      <Button outline @click="resetFilters">Clear filters</Button>
     </div>
+
+    <Divider class="mt-6" />
+
+    <EmptyState v-if="query.isPending.value" variant="loading" title="Loading companies…" />
+
+    <EmptyState
+      v-else-if="query.isError.value"
+      variant="error"
+      title="Couldn't load companies"
+      :message="query.error.value?.message"
+    >
+      <Button @click="query.refetch()">Try again</Button>
+    </EmptyState>
+
+    <EmptyState v-else-if="isEmpty" title="No companies found" message="Adjust your filters or add an account.">
+      <Button v-if="can('companies.create')" @click="editing = null; formOpen = true">New company</Button>
+    </EmptyState>
+
+    <template v-else>
+      <Table class="mt-4">
+        <TableHead>
+          <tr>
+            <SortHeader field="name" label="Company" :sort="state.sort" @sort="setSort" />
+            <SortHeader field="industry" label="Industry" :sort="state.sort" @sort="setSort" />
+            <TableHeader>Contacts</TableHeader>
+            <TableHeader>Deals</TableHeader>
+            <SortHeader field="annual_revenue" label="Revenue" :sort="state.sort" @sort="setSort" />
+            <TableHeader>Owner</TableHeader>
+            <TableHeader class="sticky right-0 bg-white dark:bg-zinc-900"><span class="sr-only">Actions</span></TableHeader>
+          </tr>
+        </TableHead>
+
+        <TableBody>
+          <TableRow v-for="company in rows" :key="company.id" clickable :muted="company.audit.is_deleted">
+            <TableCell>
+              <div class="flex items-center gap-2">
+                <RouterLink :to="`/companies/${company.id}`" class="font-medium text-zinc-950 hover:underline dark:text-white">
+                  {{ company.name }}
+                </RouterLink>
+                <Badge v-if="company.audit.is_deleted" color="red">Deleted</Badge>
+              </div>
+              <p class="text-xs/5 text-zinc-500 dark:text-zinc-400">{{ company.domain ?? '—' }}</p>
+            </TableCell>
+            <TableCell class="text-zinc-500 dark:text-zinc-400">{{ company.industry ?? '—' }}</TableCell>
+            <TableCell class="tabular-nums">{{ company.contacts_count ?? 0 }}</TableCell>
+            <TableCell class="tabular-nums">{{ company.deals_count ?? 0 }}</TableCell>
+            <TableCell class="tabular-nums">
+              {{ company.annual_revenue ? formatCurrency(company.annual_revenue) : '—' }}
+            </TableCell>
+            <TableCell><OwnerChip :owner="company.owner" /></TableCell>
+            <TableCell class="sticky right-0 bg-white dark:bg-zinc-900">
+              <div class="-my-1.5 flex justify-end gap-1">
+                <Button
+                  v-if="!company.audit.is_deleted && can('companies.update')"
+                  plain size="sm"
+                  @click="editing = company; formOpen = true"
+                >
+                  Edit
+                </Button>
+                <Button
+                  v-if="!company.audit.is_deleted && can('companies.delete')"
+                  plain size="sm"
+                  @click="pendingDelete = company"
+                >
+                  Delete
+                </Button>
+                <Button
+                  v-if="company.audit.is_deleted && can('companies.restore')"
+                  plain size="sm"
+                  :loading="restore.isPending.value"
+                  @click="restore.mutate(company)"
+                >
+                  Restore
+                </Button>
+              </div>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+
+      <Pagination :meta="meta" :fetching="query.isFetching.value" @change="setPage" />
+    </template>
 
     <CompanyFormModal :open="formOpen" :company="editing" @close="formOpen = false" />
 
-    <ConfirmDialog
+    <Alert
       :open="pendingDelete !== null"
       title="Move company to trash?"
-      :message="`${pendingDelete?.name} will be soft deleted. Its contacts and deals stay intact.`"
+      :description="`${pendingDelete?.name} will be soft deleted. Its contacts and deals stay intact.`"
       confirm-label="Move to trash"
       :loading="remove.isPending.value"
       @cancel="pendingDelete = null"

@@ -4,11 +4,9 @@ import { RouterLink } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import api from '@/lib/api'
 import { STALE } from '@/lib/queryClient'
+import { Badge, Button, Divider, EmptyState, Heading, Subheading, Text } from '@/components/catalyst'
 import { useAuth } from '@/composables/useAuth'
 import { formatCurrency, humanize } from '@/lib/format'
-import BaseBadge from '@/components/ui/BaseBadge.vue'
-import BaseButton from '@/components/ui/BaseButton.vue'
-import StateBlock from '@/components/ui/StateBlock.vue'
 import AuditTrail from '@/components/crm/AuditTrail.vue'
 import OwnerChip from '@/components/crm/OwnerChip.vue'
 import ActivityTimeline from '@/components/crm/ActivityTimeline.vue'
@@ -59,100 +57,100 @@ const address = computed(() => {
 
 <template>
   <div class="space-y-5">
-    <StateBlock v-if="companyQuery.isPending.value" variant="loading" title="Loading company…" />
+    <EmptyState v-if="companyQuery.isPending.value" variant="loading" title="Loading company…" />
 
-    <StateBlock
+    <EmptyState
       v-else-if="companyQuery.isError.value"
       variant="error"
       title="Couldn't load this company"
       :message="companyQuery.error.value?.message"
     >
-      <RouterLink to="/companies" class="text-sm font-medium text-indigo-600 hover:underline">Back to companies</RouterLink>
-    </StateBlock>
+      <RouterLink to="/companies" class="text-sm font-medium text-zinc-950 dark:text-white hover:underline">Back to companies</RouterLink>
+    </EmptyState>
 
     <template v-else-if="company">
-      <nav class="text-sm text-slate-500">
+      <nav class="text-sm text-zinc-500 dark:text-zinc-400">
         <RouterLink to="/companies" class="hover:underline">Companies</RouterLink>
         <span aria-hidden="true"> / </span>
-        <span class="text-slate-700">{{ company.name }}</span>
+        <span class="text-zinc-700 dark:text-zinc-300">{{ company.name }}</span>
       </nav>
 
-      <header class="card flex flex-wrap items-start justify-between gap-4 p-5">
+      <header class="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div class="flex flex-wrap items-center gap-2">
-            <h1 class="text-xl font-semibold text-slate-900">{{ company.name }}</h1>
-            <BaseBadge v-if="company.industry">{{ company.industry }}</BaseBadge>
-            <BaseBadge v-if="company.audit.is_deleted" tone="red">Deleted</BaseBadge>
+            <h1 class="text-xl font-semibold text-zinc-950 dark:text-white">{{ company.name }}</h1>
+            <Badge v-if="company.industry">{{ company.industry }}</Badge>
+            <Badge v-if="company.audit.is_deleted" color="red">Deleted</Badge>
           </div>
-          <p class="mt-1 text-sm text-slate-600">
-            <a v-if="company.website" :href="company.website" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">
+          <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            <a v-if="company.website" :href="company.website" target="_blank" rel="noopener noreferrer" class="text-zinc-950 dark:text-white hover:underline">
               {{ company.website }}
             </a>
             <span v-else>{{ company.domain || 'No website' }}</span>
           </p>
           <div class="mt-3 flex flex-wrap gap-2">
-            <BaseBadge v-for="tag in company.tags ?? []" :key="tag.id" :color="tag.color">{{ tag.name }}</BaseBadge>
+            <Badge v-for="tag in company.tags ?? []" :key="tag.id" :hex="tag.color">{{ tag.name }}</Badge>
           </div>
         </div>
 
-        <BaseButton v-if="can('companies.update') && !company.audit.is_deleted" @click="formOpen = true">Edit</BaseButton>
+        <Button v-if="can('companies.update') && !company.audit.is_deleted" @click="formOpen = true">Edit</Button>
       </header>
 
       <div class="grid gap-5 lg:grid-cols-3">
-        <section class="card p-5" aria-labelledby="co-details">
-          <h2 id="co-details" class="mb-4 text-sm font-semibold text-slate-900">Details</h2>
+        <section class="rounded-xl border border-zinc-950/5 p-6 dark:border-white/10" aria-labelledby="co-details">
+          <h2 id="co-details" class="mb-4 text-sm font-semibold text-zinc-950 dark:text-white">Details</h2>
           <dl class="space-y-3 text-sm">
-            <div><dt class="text-slate-500">Owner</dt><dd><OwnerChip :owner="company.owner" /></dd></div>
-            <div><dt class="text-slate-500">Phone</dt><dd class="text-slate-800">{{ company.phone || '—' }}</dd></div>
-            <div><dt class="text-slate-500">Size</dt><dd class="text-slate-800">{{ company.size ? `${company.size} employees` : '—' }}</dd></div>
-            <div><dt class="text-slate-500">Annual revenue</dt><dd class="text-slate-800 tabular-nums">{{ company.annual_revenue ? formatCurrency(company.annual_revenue) : '—' }}</dd></div>
-            <div><dt class="text-slate-500">Address</dt><dd class="text-slate-800">{{ address }}</dd></div>
+            <div><dt class="text-zinc-500 dark:text-zinc-400">Owner</dt><dd><OwnerChip :owner="company.owner" /></dd></div>
+            <div><dt class="text-zinc-500 dark:text-zinc-400">Phone</dt><dd class="text-zinc-950 dark:text-white">{{ company.phone || '—' }}</dd></div>
+            <div><dt class="text-zinc-500 dark:text-zinc-400">Size</dt><dd class="text-zinc-950 dark:text-white">{{ company.size ? `${company.size} employees` : '—' }}</dd></div>
+            <div><dt class="text-zinc-500 dark:text-zinc-400">Annual revenue</dt><dd class="text-zinc-950 dark:text-white tabular-nums">{{ company.annual_revenue ? formatCurrency(company.annual_revenue) : '—' }}</dd></div>
+            <div><dt class="text-zinc-500 dark:text-zinc-400">Address</dt><dd class="text-zinc-950 dark:text-white">{{ address }}</dd></div>
           </dl>
-          <p v-if="company.description" class="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">{{ company.description }}</p>
+          <p v-if="company.description" class="mt-4 rounded-lg bg-zinc-950/2.5 dark:bg-white/5 p-3 text-sm text-zinc-700 dark:text-zinc-300">{{ company.description }}</p>
         </section>
 
-        <section class="card p-5" aria-labelledby="co-contacts">
-          <h2 id="co-contacts" class="mb-4 text-sm font-semibold text-slate-900">
-            Contacts <span class="text-slate-400">({{ company.contacts_count ?? 0 }})</span>
+        <section class="rounded-xl border border-zinc-950/5 p-6 dark:border-white/10" aria-labelledby="co-contacts">
+          <h2 id="co-contacts" class="mb-4 text-sm font-semibold text-zinc-950 dark:text-white">
+            Contacts <span class="text-zinc-400 dark:text-zinc-500">({{ company.contacts_count ?? 0 }})</span>
           </h2>
 
-          <StateBlock v-if="contactsQuery.isPending.value" variant="loading" />
-          <ul v-else-if="contactsQuery.data.value?.length" class="divide-y divide-slate-100">
+          <EmptyState v-if="contactsQuery.isPending.value" variant="loading" />
+          <ul v-else-if="contactsQuery.data.value?.length" class="divide-y divide-zinc-950/5 dark:divide-white/5">
             <li v-for="c in contactsQuery.data.value" :key="c.id" class="py-2.5">
-              <RouterLink :to="`/contacts/${c.id}`" class="text-sm font-medium text-indigo-600 hover:underline">{{ c.full_name }}</RouterLink>
-              <p class="text-xs text-slate-500">{{ c.job_title || humanize(c.lifecycle_stage) }}</p>
+              <RouterLink :to="`/contacts/${c.id}`" class="text-sm font-medium text-zinc-950 dark:text-white hover:underline">{{ c.full_name }}</RouterLink>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ c.job_title || humanize(c.lifecycle_stage) }}</p>
             </li>
           </ul>
-          <p v-else class="py-6 text-center text-sm text-slate-500">No contacts yet.</p>
+          <p v-else class="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">No contacts yet.</p>
         </section>
 
-        <section class="card p-5" aria-labelledby="co-deals">
-          <h2 id="co-deals" class="mb-4 text-sm font-semibold text-slate-900">
-            Deals <span class="text-slate-400">({{ company.deals_count ?? 0 }})</span>
+        <section class="rounded-xl border border-zinc-950/5 p-6 dark:border-white/10" aria-labelledby="co-deals">
+          <h2 id="co-deals" class="mb-4 text-sm font-semibold text-zinc-950 dark:text-white">
+            Deals <span class="text-zinc-400 dark:text-zinc-500">({{ company.deals_count ?? 0 }})</span>
           </h2>
 
-          <StateBlock v-if="dealsQuery.isPending.value" variant="loading" />
-          <ul v-else-if="dealsQuery.data.value?.length" class="divide-y divide-slate-100">
+          <EmptyState v-if="dealsQuery.isPending.value" variant="loading" />
+          <ul v-else-if="dealsQuery.data.value?.length" class="divide-y divide-zinc-950/5 dark:divide-white/5">
             <li v-for="d in dealsQuery.data.value" :key="d.id" class="flex items-center justify-between gap-2 py-2.5">
               <div class="min-w-0">
-                <RouterLink :to="`/deals/${d.id}`" class="block truncate text-sm font-medium text-indigo-600 hover:underline">{{ d.name }}</RouterLink>
-                <p class="text-xs text-slate-500">{{ d.stage?.name ?? humanize(d.status) }}</p>
+                <RouterLink :to="`/deals/${d.id}`" class="block truncate text-sm font-medium text-zinc-950 dark:text-white hover:underline">{{ d.name }}</RouterLink>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ d.stage?.name ?? humanize(d.status) }}</p>
               </div>
-              <span class="shrink-0 text-sm tabular-nums text-slate-700">{{ formatCurrency(d.amount, d.currency) }}</span>
+              <span class="shrink-0 text-sm tabular-nums text-zinc-700 dark:text-zinc-300">{{ formatCurrency(d.amount, d.currency) }}</span>
             </li>
           </ul>
-          <p v-else class="py-6 text-center text-sm text-slate-500">No deals yet.</p>
+          <p v-else class="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">No deals yet.</p>
         </section>
       </div>
 
-      <section class="card p-5" aria-labelledby="co-timeline">
-        <h2 id="co-timeline" class="mb-4 text-sm font-semibold text-slate-900">Activity timeline</h2>
-        <StateBlock v-if="activitiesQuery.isPending.value" variant="loading" />
+      <section class="rounded-xl border border-zinc-950/5 p-6 dark:border-white/10" aria-labelledby="co-timeline">
+        <h2 id="co-timeline" class="mb-4 text-sm font-semibold text-zinc-950 dark:text-white">Activity timeline</h2>
+        <EmptyState v-if="activitiesQuery.isPending.value" variant="loading" />
         <ActivityTimeline v-else :activities="activitiesQuery.data.value ?? []" />
       </section>
 
-      <section class="card p-5" aria-labelledby="co-audit">
-        <h2 id="co-audit" class="mb-3 text-sm font-semibold text-slate-900">Record history</h2>
+      <section class="rounded-xl border border-zinc-950/5 p-6 dark:border-white/10" aria-labelledby="co-audit">
+        <h2 id="co-audit" class="mb-3 text-sm font-semibold text-zinc-950 dark:text-white">Record history</h2>
         <AuditTrail :audit="company.audit" />
       </section>
 

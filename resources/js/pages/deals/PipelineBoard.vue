@@ -4,11 +4,11 @@ import { RouterLink } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import api from '@/lib/api'
 import { STALE } from '@/lib/queryClient'
+import { Badge, Button, EmptyState, Select } from '@/components/catalyst'
+import PageHeader from '@/components/crm/PageHeader.vue'
 import { useAuth } from '@/composables/useAuth'
 import { useToast } from '@/composables/useToast'
 import { formatCurrency } from '@/lib/format'
-import BaseButton from '@/components/ui/BaseButton.vue'
-import StateBlock from '@/components/ui/StateBlock.vue'
 import DealFormModal from './DealFormModal.vue'
 
 const { can } = useAuth()
@@ -94,32 +94,28 @@ function moveByKeyboard(deal, direction) {
 
 <template>
   <div class="space-y-4">
-    <header class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 class="text-xl font-semibold text-slate-900">Pipeline</h1>
-        <p class="text-sm text-slate-500">Drag a card to move a deal, or use ← / → on a focused card.</p>
-      </div>
+    <PageHeader title="Pipeline" description="Drag a card to move a deal, or use ← / → on a focused card.">
+      <template #actions>
+        <div class="w-48">
+          <Select v-model="pipelineId" aria-label="Pipeline">
+            <option v-for="p in pipelines ?? []" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </Select>
+        </div>
+        <Button outline to="/deals">List view</Button>
+        <Button v-if="can('deals.create')" @click="formOpen = true">New deal</Button>
+      </template>
+    </PageHeader>
 
-      <div class="flex flex-wrap gap-2">
-        <label class="sr-only" for="pipeline-select">Pipeline</label>
-        <select id="pipeline-select" v-model="pipelineId" class="field-input w-auto">
-          <option v-for="p in pipelines ?? []" :key="p.id" :value="p.id">{{ p.name }}</option>
-        </select>
-        <RouterLink to="/deals"><BaseButton variant="secondary">List view</BaseButton></RouterLink>
-        <BaseButton v-if="can('deals.create')" @click="formOpen = true">New deal</BaseButton>
-      </div>
-    </header>
+    <EmptyState v-if="pipelinesPending || boardQuery.isPending.value" variant="loading" title="Loading pipeline…" />
 
-    <StateBlock v-if="pipelinesPending || boardQuery.isPending.value" variant="loading" title="Loading pipeline…" />
-
-    <StateBlock
+    <EmptyState
       v-else-if="boardQuery.isError.value"
       variant="error"
       title="Couldn't load the board"
       :message="boardQuery.error.value?.message"
     >
-      <BaseButton size="sm" @click="boardQuery.refetch()">Try again</BaseButton>
-    </StateBlock>
+      <Button size="sm" @click="boardQuery.refetch()">Try again</Button>
+    </EmptyState>
 
     <div v-else class="overflow-x-auto pb-2">
       <ul class="flex min-w-max gap-4">
@@ -132,20 +128,22 @@ function moveByKeyboard(deal, direction) {
           @drop.prevent="onDrop(stage.id)"
         >
           <div
-            class="flex h-full flex-col rounded-xl border bg-slate-100/60 transition"
-            :class="dragOverStage === stage.id ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200'"
+            class="flex h-full flex-col rounded-xl border bg-zinc-950/5 dark:bg-white/10/60 transition"
+            :class="dragOverStage === stage.id
+                ? 'border-blue-500 bg-blue-500/5'
+                : 'border-zinc-950/10 bg-zinc-950/2.5 dark:border-white/10 dark:bg-white/2.5'"
           >
-            <div class="border-b border-slate-200 px-3 py-2.5">
+            <div class="border-b border-zinc-950/10 px-3 py-2.5 dark:border-white/10">
               <div class="flex items-center justify-between gap-2">
-                <span class="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <span class="flex items-center gap-2 text-sm font-semibold text-zinc-950 dark:text-white">
                   <span class="size-2.5 rounded-full" :style="{ backgroundColor: stage.color }" aria-hidden="true" />
                   {{ stage.name }}
                 </span>
-                <span class="rounded-full bg-white px-2 py-0.5 text-xs tabular-nums text-slate-600">
+                <span class="rounded-full bg-white px-2 py-0.5 text-xs tabular-nums text-zinc-500 ring-1 ring-zinc-950/5 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-white/10">
                   {{ dealsIn(stage.id).length }}
                 </span>
               </div>
-              <p class="mt-1 text-xs tabular-nums text-slate-500">{{ formatCurrency(stageTotal(stage.id)) }}</p>
+              <p class="mt-1 text-xs tabular-nums text-zinc-500 dark:text-zinc-400">{{ formatCurrency(stageTotal(stage.id)) }}</p>
             </div>
 
             <ul class="flex-1 space-y-2 p-2">
@@ -153,7 +151,7 @@ function moveByKeyboard(deal, direction) {
                 v-for="deal in dealsIn(stage.id)"
                 :key="deal.id"
                 :draggable="can('deals.update')"
-                class="card cursor-grab p-3 active:cursor-grabbing"
+                class="rounded-xl border border-zinc-950/5 cursor-grab p-3 active:cursor-grabbing dark:border-white/10"
                 :class="draggingId === deal.id ? 'opacity-50' : ''"
                 tabindex="0"
                 @dragstart="onDragStart($event, deal)"
@@ -161,17 +159,17 @@ function moveByKeyboard(deal, direction) {
                 @keydown.left.prevent="moveByKeyboard(deal, -1)"
                 @keydown.right.prevent="moveByKeyboard(deal, 1)"
               >
-                <RouterLink :to="`/deals/${deal.id}`" class="block text-sm font-medium text-slate-900 hover:text-indigo-600">
+                <RouterLink :to="`/deals/${deal.id}`" class="block text-sm font-medium text-zinc-950 dark:text-white hover:text-zinc-950 dark:text-white">
                   {{ deal.name }}
                 </RouterLink>
-                <p class="mt-1 text-sm font-semibold tabular-nums text-slate-700">
+                <p class="mt-1 text-sm font-semibold tabular-nums text-zinc-700 dark:text-zinc-300">
                   {{ formatCurrency(deal.amount, deal.currency) }}
                 </p>
-                <p v-if="deal.company" class="mt-0.5 truncate text-xs text-slate-500">{{ deal.company.name }}</p>
-                <p v-if="deal.owner" class="mt-1 text-xs text-slate-400">{{ deal.owner.name }}</p>
+                <p v-if="deal.company" class="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">{{ deal.company.name }}</p>
+                <p v-if="deal.owner" class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">{{ deal.owner.name }}</p>
               </li>
 
-              <li v-if="dealsIn(stage.id).length === 0" class="rounded-lg border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-400">
+              <li v-if="dealsIn(stage.id).length === 0" class="rounded-lg border border-dashed border-zinc-950/10 px-3 py-6 text-center text-xs text-zinc-400 dark:border-white/10 dark:text-zinc-500">
                 Drop a deal here
               </li>
             </ul>

@@ -4,14 +4,22 @@ import { onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 const props = defineProps({
   open: { type: Boolean, default: false },
   title: { type: String, required: true },
-  size: { type: String, default: 'md' },
+  description: { type: String, default: null },
+  size: { type: String, default: 'lg' },
 })
 const emit = defineEmits(['close'])
 
 const panel = ref(null)
 const titleId = useId()
 
-const SIZES = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl' }
+const SIZES = {
+  sm: 'sm:max-w-sm',
+  md: 'sm:max-w-md',
+  lg: 'sm:max-w-lg',
+  xl: 'sm:max-w-xl',
+  '2xl': 'sm:max-w-2xl',
+  '3xl': 'sm:max-w-3xl',
+}
 
 function onKeydown(event) {
   if (!props.open) return
@@ -61,39 +69,39 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <div v-if="open" class="fixed inset-0 z-50 overflow-y-auto">
-      <div class="fixed inset-0 bg-slate-900/40" @click="emit('close')" />
+    <div v-if="open" class="fixed inset-0 z-50 w-screen overflow-y-auto pt-6 sm:pt-0">
+      <div class="fixed inset-0 bg-zinc-950/25 backdrop-blur-sm dark:bg-zinc-950/50" @click="emit('close')" />
 
-      <div class="flex min-h-full items-end justify-center p-0 sm:items-center sm:p-4">
+      <!--
+        `relative` matters: the backdrop is position:fixed, and positioned
+        elements paint above static ones in the same stacking context. Without
+        it the panel and its labels render *under* the blur while the inputs
+        (which are relative) stay crisp.
+      -->
+      <div class="relative grid min-h-full grid-rows-[1fr_auto] justify-items-center sm:grid-rows-[1fr_auto_3fr] sm:p-4">
         <div
           ref="panel"
           role="dialog"
           aria-modal="true"
           :aria-labelledby="titleId"
-          class="relative w-full rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
-          :class="SIZES[size] ?? SIZES.md"
+          class="row-start-2 w-full rounded-t-3xl bg-white p-(--gutter) shadow-lg ring-1 ring-zinc-950/10 [--gutter:--spacing(8)] sm:mb-auto sm:rounded-2xl dark:bg-zinc-900 dark:ring-white/10 forced-colors:outline"
+          :class="SIZES[size] ?? SIZES.lg"
         >
-          <header class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-            <h2 :id="titleId" class="text-base font-semibold text-slate-900">{{ title }}</h2>
-            <button
-              type="button"
-              class="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              aria-label="Close dialog"
-              @click="emit('close')"
-            >
-              <svg class="size-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path d="M6.3 6.3a1 1 0 011.4 0L10 8.6l2.3-2.3a1 1 0 111.4 1.4L11.4 10l2.3 2.3a1 1 0 01-1.4 1.4L10 11.4l-2.3 2.3a1 1 0 01-1.4-1.4L8.6 10 6.3 7.7a1 1 0 010-1.4z" />
-              </svg>
-            </button>
-          </header>
+          <h2 :id="titleId" class="text-lg/6 font-semibold text-balance text-zinc-950 sm:text-base/6 dark:text-white">
+            {{ title }}
+          </h2>
+          <p v-if="description" class="mt-2 text-base/6 text-pretty text-zinc-500 sm:text-sm/6 dark:text-zinc-400">
+            {{ description }}
+          </p>
 
-          <div class="max-h-[70vh] overflow-y-auto px-5 py-4">
+          <!-- Long forms scroll inside the panel so the actions stay reachable. -->
+          <div class="mt-6 max-h-[60vh] overflow-y-auto scrollbar-thin">
             <slot />
           </div>
 
-          <footer v-if="$slots.footer" class="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
-            <slot name="footer" />
-          </footer>
+          <div v-if="$slots.actions" class="mt-8 flex flex-col-reverse items-center justify-end gap-3 *:w-full sm:flex-row sm:*:w-auto">
+            <slot name="actions" />
+          </div>
         </div>
       </div>
     </div>

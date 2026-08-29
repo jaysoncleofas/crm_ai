@@ -53,6 +53,19 @@ the supported environment.
 
 ## Frontend
 
+**Use the component kit in `resources/js/components/catalyst/`** — import from
+`@/components/catalyst`. It is original Vue styled after Tailwind's Catalyst
+(zinc palette, ring borders, Heroicons); do not reach for raw Tailwind classes
+where a kit component exists, and keep both themes working (`dark:` on every
+colour). Catalyst itself is paid and React-only — none of its source is here.
+
+Two gotchas that already bit once:
+- A dialog panel must be positioned (`relative`). The backdrop is `fixed`, and
+  positioned elements paint above static ones, so a static panel renders *under*
+  the blur.
+- Anything inside a `<label>` becomes part of the control's accessible name.
+  Keep markers like the required asterisk outside it.
+
 Vue 3 `<script setup>`, Vue Router, TanStack Vue Query for all server state.
 Query keys are hierarchical (`['contacts']`, `['contacts', id]`) so a mutation
 can invalidate `['contacts']` and refresh every page and filter. List views use

@@ -4,50 +4,44 @@
 @source '../views/**/*.blade.php';
 @source './**/*.vue';
 
+/* Dark mode is driven by a class on <html>, so the user can pick a theme
+   rather than inheriting whatever the OS says. See composables/useTheme.js. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
-        Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+    --font-sans: 'Inter var', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+        'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
 }
 
 @layer base {
     html {
         -webkit-text-size-adjust: 100%;
+        scrollbar-gutter: stable;
     }
 
     body {
-        @apply bg-slate-50 text-slate-900 antialiased;
+        @apply bg-white text-zinc-950 antialiased lg:bg-zinc-100 dark:bg-zinc-900 dark:text-white dark:lg:bg-zinc-950;
     }
 
-    /* A visible focus ring everywhere — keyboard users must never lose their place. */
+    /* Every focusable thing gets the same blue ring — keyboard users must
+       never lose their place. Components opt out only to draw their own. */
     :focus-visible {
-        @apply outline-2 outline-offset-2 outline-indigo-600;
+        @apply outline-2 outline-offset-2 outline-blue-500;
+    }
+
+    /* Text selection picks up the accent rather than the browser default. */
+    ::selection {
+        @apply bg-blue-500/25;
     }
 }
 
-@layer components {
-    .field-label {
-        @apply mb-1 block text-sm font-medium text-slate-700;
-    }
+@utility scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-zinc-300) transparent;
+}
 
-    .field-input {
-        @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900
-               placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200
-               disabled:cursor-not-allowed disabled:bg-slate-100;
-    }
-
-    .field-error {
-        @apply mt-1 text-sm text-red-600;
-    }
-
-    .card {
-        @apply rounded-xl border border-slate-200 bg-white shadow-sm;
-    }
-
-    .table-cell {
-        @apply whitespace-nowrap px-4 py-3 text-sm text-slate-700;
-    }
-
-    .table-head {
-        @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500;
+@layer utilities {
+    .dark .scrollbar-thin {
+        scrollbar-color: var(--color-zinc-700) transparent;
     }
 }

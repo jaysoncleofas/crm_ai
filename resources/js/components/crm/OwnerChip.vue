@@ -1,4 +1,7 @@
 <script setup>
+import { Avatar } from '@/components/catalyst'
+import { initials } from '@/lib/format'
+
 defineProps({
   owner: { type: Object, default: null },
 })
@@ -6,13 +9,8 @@ defineProps({
 
 <template>
   <span v-if="owner" class="inline-flex items-center gap-2">
-    <span
-      class="flex size-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-semibold text-indigo-700"
-      aria-hidden="true"
-    >
-      {{ owner.initials }}
-    </span>
-    <span class="truncate text-sm text-slate-700">{{ owner.name }}</span>
+    <Avatar :initials="owner.initials ?? initials(owner.name)" :alt="owner.name" size="xs" />
+    <span class="truncate text-sm/6 text-zinc-950 dark:text-white">{{ owner.name }}</span>
   </span>
-  <span v-else class="text-sm text-slate-400">Unassigned</span>
+  <span v-else class="text-sm/6 text-zinc-400 dark:text-zinc-500">Unassigned</span>
 </template>

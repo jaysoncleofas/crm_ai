@@ -1,14 +1,15 @@
 <script setup>
-import { RouterLink } from 'vue-router'
+import AuthLayout from '@/components/catalyst/AuthLayout.vue'
+import { Button, Heading, Text } from '@/components/catalyst'
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col items-center justify-center gap-3 px-4 text-center">
-    <p class="text-sm font-semibold uppercase tracking-wide text-indigo-600">404</p>
-    <h1 class="text-2xl font-semibold text-slate-900">Page not found</h1>
-    <p class="text-sm text-slate-500">The page you were looking for doesn't exist or has moved.</p>
-    <RouterLink to="/" class="mt-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-      Back to dashboard
-    </RouterLink>
-  </div>
+  <AuthLayout>
+    <div class="flex max-w-sm flex-col items-center gap-4 text-center">
+      <p class="text-sm/6 font-semibold text-zinc-500 dark:text-zinc-400">404</p>
+      <Heading>Page not found</Heading>
+      <Text>The page you were looking for doesn't exist or has moved.</Text>
+      <Button to="/" class="mt-2">Back to dashboard</Button>
+    </div>
+  </AuthLayout>
 </template>

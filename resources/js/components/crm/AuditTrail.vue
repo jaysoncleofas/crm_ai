@@ -1,5 +1,6 @@
 <script setup>
 import { formatDateTime } from '@/lib/format'
+import { DescriptionDetails, DescriptionList, DescriptionTerm } from '@/components/catalyst'
 
 defineProps({
   audit: { type: Object, required: true },
@@ -7,21 +8,25 @@ defineProps({
 </script>
 
 <template>
-  <dl class="grid gap-3 text-xs text-slate-500 sm:grid-cols-3">
-    <div>
-      <dt class="font-semibold uppercase tracking-wide text-slate-400">Created</dt>
-      <dd class="mt-0.5 text-slate-700">{{ formatDateTime(audit.created_at) }}</dd>
-      <dd v-if="audit.creator" class="text-slate-500">by {{ audit.creator.name }}</dd>
-    </div>
-    <div>
-      <dt class="font-semibold uppercase tracking-wide text-slate-400">Last updated</dt>
-      <dd class="mt-0.5 text-slate-700">{{ formatDateTime(audit.updated_at) }}</dd>
-      <dd v-if="audit.updater" class="text-slate-500">by {{ audit.updater.name }}</dd>
-    </div>
-    <div v-if="audit.is_deleted">
-      <dt class="font-semibold uppercase tracking-wide text-red-400">Deleted</dt>
-      <dd class="mt-0.5 text-red-700">{{ formatDateTime(audit.deleted_at) }}</dd>
-      <dd v-if="audit.deleter" class="text-red-500">by {{ audit.deleter.name }}</dd>
-    </div>
-  </dl>
+  <DescriptionList>
+    <DescriptionTerm>Created</DescriptionTerm>
+    <DescriptionDetails>
+      {{ formatDateTime(audit.created_at) }}
+      <span v-if="audit.creator" class="text-zinc-500 dark:text-zinc-400">· by {{ audit.creator.name }}</span>
+    </DescriptionDetails>
+
+    <DescriptionTerm>Last updated</DescriptionTerm>
+    <DescriptionDetails>
+      {{ formatDateTime(audit.updated_at) }}
+      <span v-if="audit.updater" class="text-zinc-500 dark:text-zinc-400">· by {{ audit.updater.name }}</span>
+    </DescriptionDetails>
+
+    <template v-if="audit.is_deleted">
+      <DescriptionTerm>Deleted</DescriptionTerm>
+      <DescriptionDetails>
+        <span class="text-red-600 dark:text-red-400">{{ formatDateTime(audit.deleted_at) }}</span>
+        <span v-if="audit.deleter" class="text-zinc-500 dark:text-zinc-400">· by {{ audit.deleter.name }}</span>
+      </DescriptionDetails>
+    </template>
+  </DescriptionList>
 </template>

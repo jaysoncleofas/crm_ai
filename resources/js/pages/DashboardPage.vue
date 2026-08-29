@@ -1,14 +1,22 @@
 <script setup>
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
+import { ArrowPathIcon } from '@heroicons/vue/16/solid'
 import api from '@/lib/api'
 import { STALE } from '@/lib/queryClient'
 import { useAuth } from '@/composables/useAuth'
 import { formatCurrency, formatNumber } from '@/lib/format'
 import StatCard from '@/components/crm/StatCard.vue'
 import ActivityTimeline from '@/components/crm/ActivityTimeline.vue'
-import StateBlock from '@/components/ui/StateBlock.vue'
-import BaseButton from '@/components/ui/BaseButton.vue'
+import {
+  Badge,
+  Button,
+  Divider,
+  EmptyState,
+  Heading,
+  Subheading,
+  Text,
+} from '@/components/catalyst'
 
 const { user } = useAuth()
 
@@ -28,64 +36,74 @@ const pipelineMax = computed(() => Math.max(1, ...pipeline.value.map((s) => s.va
 </script>
 
 <template>
-  <div class="space-y-6">
-    <header class="flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <div class="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 class="text-xl font-semibold text-slate-900">Good to see you, {{ user?.name?.split(' ')[0] }}</h1>
-        <p class="text-sm text-slate-500">Here's where your pipeline stands today.</p>
+        <Heading>Good to see you, {{ user?.name?.split(' ')[0] }}</Heading>
+        <Text class="mt-1">Here's where your pipeline stands today.</Text>
       </div>
-      <BaseButton variant="secondary" size="sm" :loading="isFetching" @click="refetch">Refresh</BaseButton>
-    </header>
+      <Button outline :loading="isFetching" @click="refetch">
+        <ArrowPathIcon class="size-4" aria-hidden="true" />
+        Refresh
+      </Button>
+    </div>
 
-    <StateBlock v-if="isPending" variant="loading" title="Loading dashboard…" />
+    <EmptyState v-if="isPending" variant="loading" title="Loading dashboard…" />
 
-    <StateBlock
+    <EmptyState
       v-else-if="isError"
       variant="error"
       title="Couldn't load the dashboard"
       :message="error?.message"
     >
-      <BaseButton size="sm" @click="refetch">Try again</BaseButton>
-    </StateBlock>
+      <Button @click="refetch">Try again</Button>
+    </EmptyState>
 
     <template v-else>
-      <section aria-labelledby="team-heading">
-        <h2 id="team-heading" class="sr-only">Team totals</h2>
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Open pipeline" :value="formatCurrency(totals.open_deal_value)" :sublabel="`${formatNumber(totals.open_deals)} open deals`" tone="indigo" />
-          <StatCard label="Won this month" :value="formatCurrency(totals.won_deal_value_this_month)" tone="green" />
-          <StatCard label="Contacts" :value="formatNumber(totals.contacts)" :sublabel="`${formatNumber(totals.companies)} companies`" />
-          <StatCard label="Due today" :value="formatNumber(totals.activities_due_today)" sublabel="planned activities" tone="amber" />
-        </div>
-      </section>
+      <Subheading class="mt-10">Team</Subheading>
+      <Divider class="mt-4" />
+      <div class="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Open pipeline"
+          :value="formatCurrency(totals.open_deal_value)"
+          :sublabel="`${formatNumber(totals.open_deals)} open deals`"
+        />
+        <StatCard label="Won this month" :value="formatCurrency(totals.won_deal_value_this_month)" />
+        <StatCard
+          label="Contacts"
+          :value="formatNumber(totals.contacts)"
+          :sublabel="`${formatNumber(totals.companies)} companies`"
+        />
+        <StatCard label="Due today" :value="formatNumber(totals.activities_due_today)" sublabel="planned activities" />
+      </div>
 
-      <section aria-labelledby="mine-heading">
-        <h2 id="mine-heading" class="mb-3 text-sm font-semibold text-slate-900">Your book</h2>
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="My open deals" :value="formatNumber(mine.open_deals)" />
-          <StatCard label="My pipeline value" :value="formatCurrency(mine.open_deal_value)" tone="indigo" />
-          <StatCard label="My overdue tasks" :value="formatNumber(mine.overdue_activities)" :tone="mine.overdue_activities > 0 ? 'red' : 'slate'" />
-          <StatCard label="My contacts" :value="formatNumber(mine.contacts)" />
-        </div>
-      </section>
+      <Subheading class="mt-14">Your book</Subheading>
+      <Divider class="mt-4" />
+      <div class="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="My open deals" :value="formatNumber(mine.open_deals)" />
+        <StatCard label="My pipeline value" :value="formatCurrency(mine.open_deal_value)" />
+        <StatCard label="My overdue tasks" :value="formatNumber(mine.overdue_activities)" />
+        <StatCard label="My contacts" :value="formatNumber(mine.contacts)" />
+      </div>
 
-      <div class="grid gap-6 lg:grid-cols-3">
-        <section class="card p-5 lg:col-span-2" aria-labelledby="funnel-heading">
-          <h2 id="funnel-heading" class="mb-4 text-sm font-semibold text-slate-900">Pipeline by stage</h2>
+      <div class="mt-14 grid gap-10 lg:grid-cols-3">
+        <section class="lg:col-span-2" aria-labelledby="funnel-heading">
+          <Subheading id="funnel-heading">Pipeline by stage</Subheading>
+          <Divider class="mt-4" />
 
-          <ul v-if="pipeline.length" class="space-y-3">
+          <ul v-if="pipeline.length" class="mt-6 space-y-4">
             <li v-for="stage in pipeline" :key="stage.stage_id">
-              <div class="mb-1 flex items-center justify-between text-sm">
-                <span class="flex items-center gap-2 text-slate-700">
-                  <span class="size-2.5 rounded-full" :style="{ backgroundColor: stage.color }" aria-hidden="true" />
+              <div class="mb-1.5 flex items-center justify-between text-sm/6">
+                <span class="flex items-center gap-2 text-zinc-950 dark:text-white">
+                  <span class="size-2 rounded-full" :style="{ backgroundColor: stage.color }" aria-hidden="true" />
                   {{ stage.name }}
                 </span>
-                <span class="tabular-nums text-slate-600">
+                <span class="tabular-nums text-zinc-500 dark:text-zinc-400">
                   {{ formatCurrency(stage.value) }}
-                  <span class="text-slate-400">· {{ stage.deals }}</span>
+                  <span class="text-zinc-400 dark:text-zinc-500">· {{ stage.deals }}</span>
                 </span>
               </div>
-              <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+              <div class="h-1.5 overflow-hidden rounded-full bg-zinc-950/5 dark:bg-white/10">
                 <div
                   class="h-full rounded-full"
                   :style="{ width: `${Math.round((stage.value / pipelineMax) * 100)}%`, backgroundColor: stage.color }"
@@ -94,31 +112,33 @@ const pipelineMax = computed(() => Math.max(1, ...pipeline.value.map((s) => s.va
             </li>
           </ul>
 
-          <StateBlock v-else title="No pipeline data" message="Create a deal to see your funnel." />
+          <EmptyState v-else title="No pipeline data" message="Create a deal to see your funnel." />
         </section>
 
-        <section class="card p-5" aria-labelledby="upcoming-heading">
-          <h2 id="upcoming-heading" class="mb-4 text-sm font-semibold text-slate-900">Your next activities</h2>
-          <ActivityTimeline :activities="upcoming" />
+        <section aria-labelledby="upcoming-heading">
+          <Subheading id="upcoming-heading">Your next activities</Subheading>
+          <Divider class="mt-4" />
+          <div class="mt-6">
+            <ActivityTimeline :activities="upcoming" />
+          </div>
         </section>
       </div>
 
-      <section class="card p-5" aria-labelledby="won-heading">
-        <h2 id="won-heading" class="mb-4 text-sm font-semibold text-slate-900">Recently won</h2>
+      <section class="mt-14" aria-labelledby="won-heading">
+        <Subheading id="won-heading">Recently won</Subheading>
+        <Divider class="mt-4" />
 
-        <ul v-if="recentWon.length" class="divide-y divide-slate-100">
-          <li v-for="deal in recentWon" :key="deal.id" class="flex items-center justify-between gap-4 py-2.5">
+        <ul v-if="recentWon.length" class="mt-2 divide-y divide-zinc-950/5 dark:divide-white/5">
+          <li v-for="deal in recentWon" :key="deal.id" class="flex items-center justify-between gap-4 py-3">
             <div class="min-w-0">
-              <p class="truncate text-sm font-medium text-slate-900">{{ deal.name }}</p>
-              <p class="text-xs text-slate-500">{{ deal.owner ?? 'Unassigned' }}</p>
+              <p class="truncate text-sm/6 font-medium text-zinc-950 dark:text-white">{{ deal.name }}</p>
+              <p class="text-xs/5 text-zinc-500 dark:text-zinc-400">{{ deal.owner ?? 'Unassigned' }}</p>
             </div>
-            <span class="shrink-0 text-sm font-semibold tabular-nums text-emerald-600">
-              {{ formatCurrency(deal.amount, deal.currency) }}
-            </span>
+            <Badge color="emerald">{{ formatCurrency(deal.amount, deal.currency) }}</Badge>
           </li>
         </ul>
 
-        <StateBlock v-else title="Nothing won yet" message="Closed-won deals will appear here." />
+        <EmptyState v-else title="Nothing won yet" message="Closed-won deals will appear here." />
       </section>
     </template>
   </div>

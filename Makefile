@@ -3,7 +3,7 @@ COMPOSE ?= docker compose
 APP     ?= $(COMPOSE) run --rm --no-deps app
 
 .DEFAULT_GOAL := help
-.PHONY: help setup up down restart logs shell migrate fresh seed test test-e2e lint build dev ps
+.PHONY: help setup up down restart logs shell migrate seed-if-empty fresh seed test test-e2e lint build dev ps
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -39,6 +39,16 @@ shell: ## Shell into the app container
 
 migrate: ## Run pending migrations
 	$(APP) php artisan migrate
+	@$(MAKE) seed-if-empty
+
+seed-if-empty: ## Seed demo data when the users table is empty
+	@count=$$($(APP) php artisan tinker --execute="echo App\\Models\\User::count();" 2>/dev/null | tail -1); \
+	if [ "$$count" = "0" ]; then \
+		echo "No users found — seeding demo data..."; \
+		$(APP) php artisan db:seed; \
+	else \
+		echo "Database has $$count user(s) — skipping seed."; \
+	fi
 
 fresh: ## Drop, re-migrate and re-seed the database
 	$(APP) php artisan migrate:fresh --seed

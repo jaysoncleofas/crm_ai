@@ -4,9 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import api from '@/lib/api'
 import { STALE } from '@/lib/queryClient'
 import { useToast } from '@/composables/useToast'
-import BaseButton from '@/components/ui/BaseButton.vue'
-import BaseModal from '@/components/ui/BaseModal.vue'
-import FormField from '@/components/ui/FormField.vue'
+import { Button, Dialog, Field, Input, Select, Textarea } from '@/components/catalyst'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -82,74 +80,74 @@ const mutation = useMutation({
 </script>
 
 <template>
-  <BaseModal :open="open" :title="company ? 'Edit company' : 'New company'" @close="emit('close')">
+  <Dialog :open="open" :title="company ? 'Edit company' : 'New company'" size="3xl" @close="emit('close')">
     <form id="company-form" class="space-y-4" novalidate @submit.prevent="mutation.mutate({ ...form })">
       <div class="grid gap-4 sm:grid-cols-2">
-        <FormField v-slot="{ id, invalid }" label="Company name" :error="errors.name?.[0]" required>
-          <input :id="id" v-model="form.name" type="text" class="field-input" required :aria-invalid="invalid" />
-        </FormField>
+        <Field label="Company name" :error="errors.name?.[0]" required>
+          <Input v-model="form.name" type="text"  required />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Domain" :error="errors.domain?.[0]">
-          <input :id="id" v-model="form.domain" type="text" class="field-input" placeholder="example.com" />
-        </FormField>
+        <Field label="Domain" :error="errors.domain?.[0]">
+          <Input v-model="form.domain" type="text"  placeholder="example.com" />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Industry" :error="errors.industry?.[0]">
-          <input :id="id" v-model="form.industry" type="text" class="field-input" />
-        </FormField>
+        <Field label="Industry" :error="errors.industry?.[0]">
+          <Input v-model="form.industry" type="text"  />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Size" :error="errors.size?.[0]">
-          <select :id="id" v-model="form.size" class="field-input">
+        <Field label="Size" :error="errors.size?.[0]">
+          <Select v-model="form.size">
             <option value="">Unknown</option>
             <option v-for="size in SIZES" :key="size" :value="size">{{ size }} employees</option>
-          </select>
-        </FormField>
+          </Select>
+        </Field>
 
-        <FormField v-slot="{ id }" label="Phone" :error="errors.phone?.[0]">
-          <input :id="id" v-model="form.phone" type="tel" class="field-input" />
-        </FormField>
+        <Field label="Phone" :error="errors.phone?.[0]">
+          <Input v-model="form.phone" type="tel"  />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Website" :error="errors.website?.[0]" hint="Include https://">
-          <input :id="id" v-model="form.website" type="url" class="field-input" />
-        </FormField>
+        <Field label="Website" :error="errors.website?.[0]" description="Include https://">
+          <Input v-model="form.website" type="url"  />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Owner" :error="errors.owner_id?.[0]">
-          <select :id="id" v-model="form.owner_id" class="field-input">
+        <Field label="Owner" :error="errors.owner_id?.[0]">
+          <Select v-model="form.owner_id">
             <option value="">Unassigned</option>
             <option v-for="person in users ?? []" :key="person.id" :value="person.id">{{ person.name }}</option>
-          </select>
-        </FormField>
+          </Select>
+        </Field>
 
-        <FormField v-slot="{ id }" label="Annual revenue (USD)" :error="errors.annual_revenue?.[0]">
-          <input :id="id" v-model.number="form.annual_revenue" type="number" min="0" class="field-input" />
-        </FormField>
+        <Field label="Annual revenue (USD)" :error="errors.annual_revenue?.[0]">
+          <Input v-model.number="form.annual_revenue" type="number" min="0"  />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Address" :error="errors.address_line1?.[0]">
-          <input :id="id" v-model="form.address_line1" type="text" class="field-input" />
-        </FormField>
+        <Field label="Address" :error="errors.address_line1?.[0]">
+          <Input v-model="form.address_line1" type="text"  />
+        </Field>
 
-        <FormField v-slot="{ id }" label="City" :error="errors.city?.[0]">
-          <input :id="id" v-model="form.city" type="text" class="field-input" />
-        </FormField>
+        <Field label="City" :error="errors.city?.[0]">
+          <Input v-model="form.city" type="text"  />
+        </Field>
 
-        <FormField v-slot="{ id }" label="State" :error="errors.state?.[0]">
-          <input :id="id" v-model="form.state" type="text" class="field-input" />
-        </FormField>
+        <Field label="State" :error="errors.state?.[0]">
+          <Input v-model="form.state" type="text"  />
+        </Field>
 
-        <FormField v-slot="{ id }" label="Country" :error="errors.country?.[0]">
-          <input :id="id" v-model="form.country" type="text" class="field-input" />
-        </FormField>
+        <Field label="Country" :error="errors.country?.[0]">
+          <Input v-model="form.country" type="text"  />
+        </Field>
       </div>
 
-      <FormField v-slot="{ id }" label="Description" :error="errors.description?.[0]">
-        <textarea :id="id" v-model="form.description" rows="3" class="field-input"></textarea>
-      </FormField>
+      <Field label="Description" :error="errors.description?.[0]">
+        <Textarea v-model="form.description" :rows="3" />
+      </Field>
     </form>
 
-    <template #footer>
-      <BaseButton variant="secondary" @click="emit('close')">Cancel</BaseButton>
-      <BaseButton type="submit" form="company-form" :loading="mutation.isPending.value">
+    <template #actions>
+      <Button outline @click="emit('close')">Cancel</Button>
+      <Button type="submit" form="company-form" :loading="mutation.isPending.value">
         {{ company ? 'Save changes' : 'Create company' }}
-      </BaseButton>
+      </Button>
     </template>
-  </BaseModal>
+  </Dialog>
 </template>

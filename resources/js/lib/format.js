@@ -70,3 +70,10 @@ export function humanize(value) {
     .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
+
+/** "Riley Chen" -> "RC". Used by Avatar wherever we only have a name. */
+export function initials(name) {
+  const parts = String(name ?? '').trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '—'
+  return parts.slice(0, 2).map((p) => p[0].toUpperCase()).join('')
+}

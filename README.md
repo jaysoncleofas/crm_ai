@@ -76,7 +76,20 @@ app/Http/Resources  API shapes (full + slim "summary" variants for nesting)
 app/Services        Business logic (DealService owns stage transitions)
 app/Support         CrmCache — tagged cache-aside helper
 resources/js        Vue 3 SPA (Composition API, Vue Router, TanStack Vue Query)
+  components/catalyst   UI kit — buttons, forms, tables, dialogs, sidebar layout
+  components/crm        Domain pieces built on the kit (timeline, audit trail…)
 ```
+
+### UI
+
+The interface is built on an in-house Vue component kit styled after Tailwind's
+Catalyst design language: a zinc palette, the sidebar-plus-floating-panel frame,
+hairline `ring` borders, and Heroicons. Light and dark themes are both
+first-class — the theme is a class on `<html>`, so the switcher in the sidebar
+can override the OS preference, and the choice persists in `localStorage`.
+
+Catalyst itself is a paid, React-only product; none of its source is used here.
+Everything under `components/catalyst/` is original Vue built to match the look.
 
 ### Auditing
 
