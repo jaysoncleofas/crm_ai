@@ -1,14 +1,15 @@
 name: Deploy
 
-# Deploys Jayson CRM to production on every push to main.
+# Deploys Jayson CRM on push to main.
 #
-# Required GitHub repo secrets (Settings → Secrets and variables → Actions):
-#   SSH_HOST          e.g. 15.235.169.194
-#   SSH_USER          e.g. root
-#   SSH_PRIVATE_KEY   contents of ~/.ssh/fittrack_deploy_ed25519
+# Preferred: self-hosted runner on the VPS (no inbound SSH from GitHub).
+# One-time setup on the server (when you can SSH in):
+#   GitHub → crm_ai → Settings → Actions → Runners → New self-hosted runner
+#   export RUNNER_REGISTRATION_TOKEN='…'
+#   bash deploy/scripts/install-github-runner.sh
 #
-# Optional:
-#   GIT_CLONE_TOKEN   PAT if GITHUB_TOKEN cannot clone this private repo
+# Fallback: SSH deploy (deploy-ssh.yml) only works if port 22 is reachable from
+# GitHub Actions runners — often blocked by firewall / offline VPS.
 
 on:
   push:
@@ -21,114 +22,15 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, jayson-vps]
+    timeout-minutes: 60
     permissions:
       contents: read
     steps:
-      - name: Verify deploy secrets
+      - uses: actions/checkout@v4
+
+      - name: Deploy on server
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          missing=0
-          if [ -z "$SSH_HOST" ]; then
-            echo "::error::Missing repository secret SSH_HOST (e.g. 15.235.169.194)"
-            missing=1
-          fi
-          if [ -z "$SSH_USER" ]; then
-            echo "::error::Missing repository secret SSH_USER (e.g. root)"
-            missing=1
-          fi
-          if [ -z "$SSH_PRIVATE_KEY" ]; then
-            echo "::error::Missing repository secret SSH_PRIVATE_KEY (deploy private key)"
-            missing=1
-          fi
-          exit "$missing"
-
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 45m
-          script: |
-            set -euo pipefail
-
-            DEPLOY_PATH="/var/www/production/crm"
-            REPO="${{ github.repository }}"
-            BRANCH="main"
-            ORIGIN_PUBLIC="https://github.com/${REPO}.git"
-            ORIGIN_AUTH="https://x-access-token:${{ secrets.GIT_CLONE_TOKEN || secrets.GITHUB_TOKEN }}@github.com/${REPO}.git"
-
-            if ! command -v docker >/dev/null 2>&1; then
-              curl -fsSL https://get.docker.com | sh
-            fi
-
-            mkdir -p "$DEPLOY_PATH"
-
-            ENV_BAK="$(mktemp -d)"
-            if [ -f "$DEPLOY_PATH/.env" ]; then
-              cp "$DEPLOY_PATH/.env" "$ENV_BAK/.env"
-            fi
-            if [ -f "$DEPLOY_PATH/gemini_credentials.json" ]; then
-              cp "$DEPLOY_PATH/gemini_credentials.json" "$ENV_BAK/gemini_credentials.json"
-            fi
-
-            if [ -d "$DEPLOY_PATH/.git" ]; then
-              cd "$DEPLOY_PATH"
-              git remote set-url origin "$ORIGIN_AUTH"
-              git fetch --depth 1 origin "$BRANCH"
-              git checkout -B "$BRANCH" "origin/$BRANCH"
-              git reset --hard "origin/$BRANCH"
-              git clean -fd -e .env -e gemini_credentials.json
-              git remote set-url origin "$ORIGIN_PUBLIC"
-            else
-              CLONE_DIR="$(mktemp -d)"
-              git clone --branch "$BRANCH" --depth 1 "$ORIGIN_AUTH" "$CLONE_DIR/repo"
-              cp -a "$CLONE_DIR/repo/." "$DEPLOY_PATH/"
-              cd "$DEPLOY_PATH"
-              git remote set-url origin "$ORIGIN_PUBLIC"
-              rm -rf "$CLONE_DIR"
-            fi
-
-            if [ -f "$ENV_BAK/.env" ]; then
-              cp "$ENV_BAK/.env" "$DEPLOY_PATH/.env"
-            fi
-            if [ -f "$ENV_BAK/gemini_credentials.json" ]; then
-              cp "$ENV_BAK/gemini_credentials.json" "$DEPLOY_PATH/gemini_credentials.json"
-            fi
-            rm -rf "$ENV_BAK"
-
-            cd "$DEPLOY_PATH"
-
-            if [ ! -f .env ]; then
-              echo "Creating production .env from template..."
-              cp .env.production.example .env
-              DB_PASS="$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)"
-              sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${DB_PASS}/" .env
-              sed -i "s/^DB_ROOT_PASSWORD=.*/DB_ROOT_PASSWORD=${DB_PASS}/" .env
-              APP_KEY="base64:$(openssl rand -base64 32)"
-              sed -i "s/^APP_KEY=.*/APP_KEY=${APP_KEY}/" .env
-            fi
-
-            if grep -qE '^DB_USERNAME=(root|)$' .env; then
-              sed -i 's/^DB_USERNAME=.*/DB_USERNAME=crm/' .env
-            fi
-
-            if [ -f deploy/nginx/crm.conf ]; then
-              cp deploy/nginx/crm-security.conf /etc/nginx/snippets/crm-security.conf
-              cp deploy/nginx/crm.conf /etc/nginx/sites-available/crm
-              ln -sf /etc/nginx/sites-available/crm /etc/nginx/sites-enabled/crm
-              nginx -t && systemctl reload nginx
-            fi
-
-            if ! certbot certificates 2>/dev/null | grep -q crm.jaysoncleofas.com; then
-              certbot --nginx -d crm.jaysoncleofas.com --non-interactive --agree-tos --register-unsafely-without-email || true
-            fi
-
-            bash deploy/scripts/finish-deploy.sh "$DEPLOY_PATH"
-
-            echo "Deploy OK — $(git rev-parse --short HEAD)"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_CLONE_TOKEN: ${{ secrets.GIT_CLONE_TOKEN }}
+        run: bash deploy/scripts/deploy-from-ci.sh

@@ -1,0 +1,63 @@
+name: Deploy (SSH fallback)
+
+# Manual SSH deploy — use only if the self-hosted runner is unavailable AND
+# GitHub Actions can reach your server on SSH (port 22 or SSH_PORT secret).
+#
+# Required secrets: SSH_HOST, SSH_USER, SSH_PRIVATE_KEY
+# Optional: SSH_PORT, GIT_CLONE_TOKEN
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Verify deploy secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "$SSH_HOST" ]; then
+            echo "::error::Missing SSH_HOST — set in repo Settings → Secrets → Actions"
+            missing=1
+          fi
+          if [ -z "$SSH_USER" ]; then
+            echo "::error::Missing SSH_USER"
+            missing=1
+          fi
+          if [ -z "$SSH_PRIVATE_KEY" ]; then
+            echo "::error::Missing SSH_PRIVATE_KEY"
+            missing=1
+          fi
+          exit "$missing"
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          command_timeout: 45m
+          script: |
+            set -euo pipefail
+            export GITHUB_REPOSITORY="${{ github.repository }}"
+            export GIT_CLONE_TOKEN="${{ secrets.GIT_CLONE_TOKEN }}"
+            if [ -f /var/www/production/crm/deploy/scripts/deploy-from-ci.sh ]; then
+              bash /var/www/production/crm/deploy/scripts/deploy-from-ci.sh
+            else
+              DEPLOY_PATH="/var/www/production/crm"
+              REPO="${{ github.repository }}"
+              BRANCH="main"
+              ORIGIN_AUTH="https://x-access-token:${{ secrets.GIT_CLONE_TOKEN || secrets.GITHUB_TOKEN }}@github.com/${REPO}.git"
+              mkdir -p "$DEPLOY_PATH"
+              git clone --branch "$BRANCH" --depth 1 "$ORIGIN_AUTH" "$DEPLOY_PATH"
+              bash "$DEPLOY_PATH/deploy/scripts/deploy-from-ci.sh"
+            fi
