@@ -3,15 +3,16 @@
 namespace App\Services\Ai;
 
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Thin wrapper over the OpenAI Responses API.
+ * Thin wrapper over an OpenAI-shaped API.
  *
- * Knows nothing about the CRM — it takes an input array and tool definitions
- * and hands back the raw response. Errors are translated into a message that is
- * safe to show a user; the provider's own text stays in the log.
+ * Supports OpenAI's Responses API (default) and chat/completions (Gemini and
+ * other OpenAI-compatible hosts). Knows nothing about the CRM — it takes an
+ * input array and tool definitions and hands back a normalised response.
  */
 class OpenAiClient
 {
@@ -22,11 +23,19 @@ class OpenAiClient
         private readonly int $timeout,
         private readonly int $maxOutputTokens,
         private readonly ?string $organization = null,
+        private readonly string $transport = 'responses',
+        private readonly ?\Closure $accessTokenResolver = null,
+        private readonly string $authMethod = 'openai_key',
     ) {}
 
     public function configured(): bool
     {
-        return filled($this->apiKey);
+        return filled($this->apiKey) || $this->accessTokenResolver !== null;
+    }
+
+    public function authMethod(): string
+    {
+        return $this->authMethod;
     }
 
     public function model(): string
@@ -45,6 +54,10 @@ class OpenAiClient
             throw new AssistantException('The assistant is not configured.', 503);
         }
 
+        if ($this->transport === 'chat') {
+            return $this->respondViaChat($input, $tools, $instructions);
+        }
+
         $payload = [
             'model' => $this->model,
             'instructions' => $instructions,
@@ -61,34 +74,14 @@ class OpenAiClient
         }
 
         try {
-            $response = Http::withToken($this->apiKey)
-                ->withHeaders(array_filter(['OpenAI-Organization' => $this->organization]))
-                ->timeout($this->timeout)
-                ->retry(2, 500, throw: false)
-                ->acceptJson()
-                ->asJson()
-                ->post("{$this->baseUrl}/responses", $payload);
+            $response = $this->request()->post("{$this->baseUrl}/responses", $payload);
         } catch (ConnectionException $e) {
-            Log::warning('Assistant: could not reach OpenAI', ['error' => $e->getMessage()]);
+            Log::warning('Assistant: could not reach the model provider', ['error' => $e->getMessage()]);
 
             throw new AssistantException('The assistant is unreachable right now. Please try again.', 503);
         }
 
-        if ($response->failed()) {
-            // The provider's message can echo request content; keep it server-side.
-            Log::warning('Assistant: OpenAI returned an error', [
-                'status' => $response->status(),
-                'body' => $response->json('error.message') ?? $response->body(),
-            ]);
-
-            throw new AssistantException(match (true) {
-                $response->status() === 401 => 'The assistant credentials were rejected.',
-                $response->status() === 429 => 'The assistant is rate limited. Please try again shortly.',
-                default => 'The assistant could not complete that request.',
-            }, $response->status() === 429 ? 429 : 502);
-        }
-
-        return $response->json() ?? [];
+        return $this->handleResponse($response);
     }
 
     /** Concatenate the assistant's text output across message items. */
@@ -132,6 +125,179 @@ class OpenAiClient
             'input_tokens' => $usage['input_tokens'] ?? null,
             'output_tokens' => $usage['output_tokens'] ?? null,
             'total_tokens' => $usage['total_tokens'] ?? null,
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $input
+     * @param  array<int, array<string, mixed>>  $tools
+     * @return array<string, mixed>
+     */
+    private function respondViaChat(array $input, array $tools, string $instructions): array
+    {
+        $payload = [
+            'model' => $this->model,
+            'messages' => $this->inputToChatMessages($input, $instructions),
+            'max_tokens' => $this->maxOutputTokens,
+        ];
+
+        if ($tools !== []) {
+            $payload['tools'] = $this->toChatTools($tools);
+            $payload['tool_choice'] = 'auto';
+        }
+
+        try {
+            $response = $this->request()->post("{$this->baseUrl}/chat/completions", $payload);
+        } catch (ConnectionException $e) {
+            Log::warning('Assistant: could not reach the model provider', ['error' => $e->getMessage()]);
+
+            throw new AssistantException('The assistant is unreachable right now. Please try again.', 503);
+        }
+
+        return $this->handleResponse($response, $this->normalizeChatResponse($response->json() ?? []));
+    }
+
+    private function request(): \Illuminate\Http\Client\PendingRequest
+    {
+        $token = $this->apiKey;
+
+        if ($this->accessTokenResolver !== null) {
+            $token = ($this->accessTokenResolver)();
+        }
+
+        return Http::withToken((string) $token)
+            ->withHeaders(array_filter(['OpenAI-Organization' => $this->organization]))
+            ->timeout($this->timeout)
+            ->retry(2, 500, throw: false)
+            ->acceptJson()
+            ->asJson();
+    }
+
+    /** @return array<string, mixed> */
+    private function handleResponse(Response $response, ?array $body = null): array
+    {
+        if ($response->failed()) {
+            Log::warning('Assistant: model provider returned an error', [
+                'status' => $response->status(),
+                'body' => $response->json('error.message') ?? $response->body(),
+            ]);
+
+            throw new AssistantException(match (true) {
+                $response->status() === 401 => 'The assistant credentials were rejected.',
+                $response->status() === 429 => 'The assistant is rate limited. Please try again shortly.',
+                default => 'The assistant could not complete that request.',
+            }, $response->status() === 429 ? 429 : 502);
+        }
+
+        return $body ?? ($response->json() ?? []);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $input
+     * @return array<int, array<string, mixed>>
+     */
+    private function inputToChatMessages(array $input, string $instructions): array
+    {
+        $messages = [['role' => 'system', 'content' => $instructions]];
+        $pendingToolCalls = [];
+
+        foreach ($input as $item) {
+            if (isset($item['role'])) {
+                $messages[] = ['role' => $item['role'], 'content' => $item['content']];
+
+                continue;
+            }
+
+            if (($item['type'] ?? null) === 'function_call') {
+                $pendingToolCalls[] = [
+                    'id' => (string) ($item['call_id'] ?? ''),
+                    'type' => 'function',
+                    'function' => [
+                        'name' => (string) ($item['name'] ?? ''),
+                        'arguments' => (string) ($item['arguments'] ?? '{}'),
+                    ],
+                ];
+
+                continue;
+            }
+
+            if (($item['type'] ?? null) === 'function_call_output') {
+                if ($pendingToolCalls !== []) {
+                    $messages[] = [
+                        'role' => 'assistant',
+                        'content' => null,
+                        'tool_calls' => $pendingToolCalls,
+                    ];
+                    $pendingToolCalls = [];
+                }
+
+                $messages[] = [
+                    'role' => 'tool',
+                    'tool_call_id' => (string) ($item['call_id'] ?? ''),
+                    'content' => (string) ($item['output'] ?? ''),
+                ];
+            }
+        }
+
+        if ($pendingToolCalls !== []) {
+            $messages[] = [
+                'role' => 'assistant',
+                'content' => null,
+                'tool_calls' => $pendingToolCalls,
+            ];
+        }
+
+        return $messages;
+    }
+
+    /**
+     * Responses-API tool definitions -> chat/completions tool definitions.
+     *
+     * @param  array<int, array<string, mixed>>  $tools
+     * @return array<int, array<string, mixed>>
+     */
+    private function toChatTools(array $tools): array
+    {
+        return array_map(fn (array $tool): array => [
+            'type' => 'function',
+            'function' => [
+                'name' => $tool['name'] ?? '',
+                'description' => $tool['description'] ?? '',
+                'parameters' => $tool['parameters'] ?? ['type' => 'object', 'properties' => new \stdClass()],
+            ],
+        ], $tools);
+    }
+
+    /** @return array<string, mixed> */
+    private function normalizeChatResponse(array $json): array
+    {
+        $message = $json['choices'][0]['message'] ?? [];
+        $output = [];
+
+        if (! empty($message['tool_calls'])) {
+            foreach ($message['tool_calls'] as $toolCall) {
+                $output[] = [
+                    'type' => 'function_call',
+                    'call_id' => $toolCall['id'] ?? '',
+                    'name' => $toolCall['function']['name'] ?? '',
+                    'arguments' => $toolCall['function']['arguments'] ?? '{}',
+                ];
+            }
+        } else {
+            $output[] = [
+                'type' => 'message',
+                'role' => 'assistant',
+                'content' => [['type' => 'output_text', 'text' => (string) ($message['content'] ?? '')]],
+            ];
+        }
+
+        return [
+            'output' => $output,
+            'usage' => [
+                'input_tokens' => $json['usage']['prompt_tokens'] ?? null,
+                'output_tokens' => $json['usage']['completion_tokens'] ?? null,
+                'total_tokens' => $json['usage']['total_tokens'] ?? null,
+            ],
         ];
     }
 }

@@ -16,6 +16,7 @@ export function useAssistant() {
   })
 
   const available = computed(() => status.data.value?.enabled === true)
+  const configured = computed(() => status.data.value?.configured === true)
 
   const send = useMutation({
     mutationFn: async (message) => {
@@ -58,6 +59,7 @@ export function useAssistant() {
   return {
     open,
     available,
+    configured,
     redactsPii: computed(() => status.data.value?.redacts_pii === true),
     messages,
     ask,

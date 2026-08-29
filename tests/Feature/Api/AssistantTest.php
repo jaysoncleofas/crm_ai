@@ -6,6 +6,7 @@ use App\Models\Deal;
 use App\Models\Pipeline;
 use App\Models\User;
 use App\Services\Ai\CrmToolkit;
+use App\Services\Ai\OpenAiClient;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
@@ -14,8 +15,22 @@ beforeEach(function (): void {
     Cache::flush();
 
     config()->set('ai.enabled', true);
+    config()->set('ai.provider', 'openai');
     config()->set('ai.openai.key', 'sk-test');
+    config()->set('ai.gemini.key', null);
     config()->set('ai.redact_pii', true);
+
+    $this->app->forgetInstance(OpenAiClient::class);
+    $this->app->singleton(OpenAiClient::class, fn (): OpenAiClient => new OpenAiClient(
+        apiKey: 'sk-test',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-5.6-terra',
+        timeout: 60,
+        maxOutputTokens: 1500,
+        organization: null,
+        transport: 'responses',
+        authMethod: 'openai_key',
+    ));
 
     $this->rep = User::factory()->create(['name' => 'Riley Chen']);
     $this->rep->assignRole('sales_rep');
@@ -204,7 +219,16 @@ it('summarises the pipeline for forecasting questions', function (): void {
 });
 
 it('reports 503 when the assistant is not configured', function (): void {
-    config()->set('ai.openai.key', null);
+    $this->app->singleton(OpenAiClient::class, fn (): OpenAiClient => new OpenAiClient(
+        apiKey: null,
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-5.6-terra',
+        timeout: 60,
+        maxOutputTokens: 1500,
+        organization: null,
+        transport: 'responses',
+        authMethod: 'openai_key',
+    ));
 
     $this->actingAs($this->rep)
         ->postJson('/api/assistant/chat', ['message' => 'Anything there?'])
@@ -264,6 +288,7 @@ it('reports status so the UI can hide itself when unconfigured', function (): vo
     $this->actingAs($this->rep)->getJson('/api/assistant/status')
         ->assertOk()
         ->assertJsonPath('data.enabled', true)
+        ->assertJsonPath('data.configured', true)
         ->assertJsonPath('data.redacts_pii', true);
 
     config()->set('ai.enabled', false);
@@ -271,4 +296,22 @@ it('reports status so the UI can hide itself when unconfigured', function (): vo
     $this->actingAs($this->rep)->getJson('/api/assistant/status')
         ->assertOk()
         ->assertJsonPath('data.enabled', false);
+});
+
+it('reports configured false when the API key is missing', function (): void {
+    $this->app->singleton(OpenAiClient::class, fn (): OpenAiClient => new OpenAiClient(
+        apiKey: null,
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-5.6-terra',
+        timeout: 60,
+        maxOutputTokens: 1500,
+        organization: null,
+        transport: 'responses',
+        authMethod: 'openai_key',
+    ));
+
+    $this->actingAs($this->rep)->getJson('/api/assistant/status')
+        ->assertOk()
+        ->assertJsonPath('data.enabled', true)
+        ->assertJsonPath('data.configured', false);
 });

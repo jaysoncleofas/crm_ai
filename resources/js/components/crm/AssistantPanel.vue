@@ -5,7 +5,7 @@ import { PaperAirplaneIcon, SparklesIcon, XMarkIcon } from '@heroicons/vue/16/so
 import { useAssistant } from '@/composables/useAssistant'
 import { Badge, Button, EmptyState } from '@/components/catalyst'
 
-const { open, available, redactsPii, messages, ask, reset, pending, toggle } = useAssistant()
+const { open, available, configured, redactsPii, messages, ask, reset, pending, toggle } = useAssistant()
 
 const draft = ref('')
 const scroller = ref(null)
@@ -131,6 +131,15 @@ function inline(text) {
           </header>
 
           <div ref="scroller" class="flex-1 space-y-5 overflow-y-auto px-5 py-5 scrollbar-thin">
+            <div
+              v-if="!configured"
+              class="rounded-lg bg-amber-500/10 px-3 py-2 text-sm/6 text-amber-800 dark:text-amber-300"
+              role="status"
+            >
+              Gemini credentials not found. Add <code class="text-xs">gemini_credentials.json</code> to
+              <code class="text-xs">laravel/</code>, or set <code class="text-xs">GEMINI_API_KEY</code>.
+            </div>
+
             <template v-if="messages.length === 0">
               <EmptyState
                 title="Ask about your customers"
@@ -141,7 +150,8 @@ function inline(text) {
                   v-for="suggestion in SUGGESTIONS"
                   :key="suggestion"
                   type="button"
-                  class="block w-full rounded-lg border border-zinc-950/10 px-3 py-2 text-left text-sm/6 text-zinc-700 hover:bg-zinc-950/2.5 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/5"
+                  class="block w-full rounded-lg border border-zinc-950/10 px-3 py-2 text-left text-sm/6 text-zinc-700 hover:bg-zinc-950/2.5 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/5 disabled:opacity-50"
+                  :disabled="!configured"
                   @click="ask(suggestion)"
                 >
                   {{ suggestion }}
@@ -215,10 +225,11 @@ function inline(text) {
                 v-model="draft"
                 rows="2"
                 placeholder="Ask about a contact, company or deal…"
-                class="block w-full resize-none rounded-lg border border-zinc-950/10 bg-transparent px-3 py-2 text-sm/6 text-zinc-950 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                class="block w-full resize-none rounded-lg border border-zinc-950/10 bg-transparent px-3 py-2 text-sm/6 text-zinc-950 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-white/10 dark:bg-white/5 dark:text-white disabled:opacity-50"
+                :disabled="!configured"
                 @keydown.enter.exact.prevent="submit"
               ></textarea>
-              <Button type="submit" :disabled="!draft.trim()" :loading="pending" aria-label="Send">
+              <Button type="submit" :disabled="!draft.trim() || !configured" :loading="pending" aria-label="Send">
                 <PaperAirplaneIcon v-if="!pending" class="size-4" aria-hidden="true" />
               </Button>
             </div>

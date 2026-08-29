@@ -104,10 +104,9 @@ test('a viewer cannot see write controls', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Audit log' })).toHaveCount(0)
 })
 
-test('the assistant stays hidden until it is configured', async ({ page }) => {
+test('the assistant stays hidden until it is enabled', async ({ page }) => {
   await signIn(page)
 
-  // Shipped default is AI_ASSISTANT_ENABLED=false, so nothing should offer it.
   const status = await page.evaluate(async () => {
     const res = await fetch('/api/assistant/status', { headers: { Accept: 'application/json' } })
     return (await res.json()).data

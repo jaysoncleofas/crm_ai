@@ -26,6 +26,10 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 
+# Gemini / Vertex service-account key (never commit)
+*-credentials.json
+*_credentials.json
+
 # Playwright
 /test-results
 /playwright-report

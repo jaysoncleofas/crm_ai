@@ -15,6 +15,12 @@ return [
 
     'enabled' => env('AI_ASSISTANT_ENABLED', false),
 
+    /*
+    | openai — OpenAI Responses API (default).
+    | gemini — Google Gemini via the OpenAI-compatible chat/completions endpoint.
+    */
+    'provider' => env('AI_PROVIDER', 'openai'),
+
     'openai' => [
         'key' => env('OPENAI_API_KEY'),
         'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
@@ -26,6 +32,16 @@ return [
 
         'timeout' => (int) env('OPENAI_TIMEOUT', 60),
         'max_output_tokens' => (int) env('OPENAI_MAX_OUTPUT_TOKENS', 1500),
+    ],
+
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        // Service-account JSON at laravel/gemini_credentials.json (gitignored).
+        'service_account_credentials' => env('GEMINI_SERVICE_ACCOUNT_CREDENTIALS'),
+        'credentials_path' => env('GEMINI_CREDENTIALS_PATH'),
+        'vertex_location' => env('VERTEX_AI_LOCATION', 'asia-southeast1'),
+        'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta/openai'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
     ],
 
     /*

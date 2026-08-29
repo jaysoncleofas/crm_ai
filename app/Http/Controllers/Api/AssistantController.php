@@ -23,7 +23,9 @@ class AssistantController extends Controller
     public function status(): JsonResponse
     {
         return response()->json(['data' => [
-            'enabled' => (bool) config('ai.enabled') && $this->client->configured(),
+            'enabled' => (bool) config('ai.enabled'),
+            'configured' => $this->client->configured(),
+            'auth' => $this->client->configured() ? $this->client->authMethod() : null,
             'model' => $this->client->configured() ? $this->client->model() : null,
             'redacts_pii' => (bool) config('ai.redact_pii'),
         ]]);
