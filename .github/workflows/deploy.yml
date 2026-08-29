@@ -1,0 +1,123 @@
+name: Deploy
+
+# Deploys Jayson CRM to production on every push to main.
+#
+# Required GitHub secrets:
+#   SSH_HOST          e.g. 15.235.169.194
+#   SSH_USER          e.g. root
+#   SSH_PRIVATE_KEY   deploy private key (~/.ssh/fittrack_deploy_ed25519)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-crm-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 45m
+          script: |
+            set -euo pipefail
+
+            DEPLOY_PATH="/var/www/production/crm"
+            REPO="${{ github.repository }}"
+            BRANCH="main"
+            ORIGIN_PUBLIC="https://github.com/${REPO}.git"
+            ORIGIN_AUTH="https://x-access-token:${{ secrets.GIT_CLONE_TOKEN || secrets.GITHUB_TOKEN }}@github.com/${REPO}.git"
+
+            if ! command -v docker >/dev/null 2>&1; then
+              curl -fsSL https://get.docker.com | sh
+            fi
+
+            dc() {
+              if docker info >/dev/null 2>&1; then
+                docker compose -f docker-compose.prod.yml "$@"
+              else
+                sudo docker compose -f docker-compose.prod.yml "$@"
+              fi
+            }
+
+            mkdir -p "$DEPLOY_PATH"
+
+            ENV_BAK="$(mktemp -d)"
+            if [ -f "$DEPLOY_PATH/.env" ]; then
+              cp "$DEPLOY_PATH/.env" "$ENV_BAK/.env"
+            fi
+            if [ -f "$DEPLOY_PATH/gemini_credentials.json" ]; then
+              cp "$DEPLOY_PATH/gemini_credentials.json" "$ENV_BAK/gemini_credentials.json"
+            fi
+
+            if [ -d "$DEPLOY_PATH/.git" ]; then
+              cd "$DEPLOY_PATH"
+              git remote set-url origin "$ORIGIN_AUTH"
+              git fetch --depth 1 origin "$BRANCH"
+              git checkout -B "$BRANCH" "origin/$BRANCH"
+              git reset --hard "origin/$BRANCH"
+              git clean -fd -e .env -e gemini_credentials.json
+              git remote set-url origin "$ORIGIN_PUBLIC"
+            else
+              CLONE_DIR="$(mktemp -d)"
+              git clone --branch "$BRANCH" --depth 1 "$ORIGIN_AUTH" "$CLONE_DIR/repo"
+              cp -a "$CLONE_DIR/repo/." "$DEPLOY_PATH/"
+              cd "$DEPLOY_PATH"
+              git remote set-url origin "$ORIGIN_PUBLIC"
+              rm -rf "$CLONE_DIR"
+            fi
+
+            if [ -f "$ENV_BAK/.env" ]; then
+              cp "$ENV_BAK/.env" "$DEPLOY_PATH/.env"
+            fi
+            if [ -f "$ENV_BAK/gemini_credentials.json" ]; then
+              cp "$ENV_BAK/gemini_credentials.json" "$DEPLOY_PATH/gemini_credentials.json"
+            fi
+            rm -rf "$ENV_BAK"
+
+            if [ ! -f "$DEPLOY_PATH/.env" ]; then
+              echo "ERROR: $DEPLOY_PATH/.env is missing. Run deploy/scripts/bootstrap-server.sh once on the server."
+              exit 1
+            fi
+
+            if [ -f "$DEPLOY_PATH/deploy/nginx/crm.conf" ]; then
+              cp "$DEPLOY_PATH/deploy/nginx/crm-security.conf" /etc/nginx/snippets/crm-security.conf
+              cp "$DEPLOY_PATH/deploy/nginx/crm.conf" /etc/nginx/sites-available/crm
+              ln -sf /etc/nginx/sites-available/crm /etc/nginx/sites-enabled/crm
+              nginx -t && systemctl reload nginx
+            fi
+
+            cd "$DEPLOY_PATH"
+            set -a
+            # shellcheck disable=SC1091
+            . ./.env
+            set +a
+
+            dc build app
+            dc build web
+            dc up -d
+
+            for _ in $(seq 1 30); do
+              if curl -fsS "http://127.0.0.1:${CRM_PORT:-8070}/up" >/dev/null 2>&1; then
+                break
+              fi
+              sleep 2
+            done
+
+            if ! curl -fsS "http://127.0.0.1:${CRM_PORT:-8070}/up" >/dev/null 2>&1; then
+              echo "Health check failed"
+              dc logs --tail=80 app web
+              exit 1
+            fi
+
+            echo "Deploy OK — $(git rev-parse --short HEAD)"
