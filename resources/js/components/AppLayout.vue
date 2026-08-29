@@ -14,6 +14,7 @@ import {
   ViewColumnsIcon,
 } from '@heroicons/vue/20/solid'
 import { ComputerDesktopIcon, MoonIcon, SunIcon } from '@heroicons/vue/16/solid'
+import AssistantPanel from '@/components/crm/AssistantPanel.vue'
 import { initials } from '@/lib/format'
 import { useAuth } from '@/composables/useAuth'
 import { useTheme } from '@/composables/useTheme'
@@ -205,5 +206,7 @@ async function onSignOut() {
     </template>
 
     <RouterView />
+
+    <AssistantPanel />
   </SidebarLayout>
 </template>

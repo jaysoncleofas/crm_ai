@@ -106,6 +106,44 @@ things so they can never drift apart:
 All of it is exposed on the API under each record's `audit` key, and browsable
 at **/audit-log**.
 
+### AI assistant
+
+An "Ask CRM" panel (⌘K) answers questions by calling read-only tools against
+the CRM through the OpenAI Responses API — "what are my overdue tasks", "show
+me open deals closing this month", "who are the contacts at Acme".
+
+**Off by default.** Enabling it sends record data to OpenAI, which is an
+operator's decision. To turn it on:
+
+```dotenv
+AI_ASSISTANT_ENABLED=true
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-5.6-terra   # or gpt-5.6-luna (cheaper) / gpt-5.6-sol (strongest)
+AI_REDACT_PII=true           # mask emails and phone numbers before they leave
+```
+
+How it is kept safe:
+
+- **Read-only.** There is no tool that writes. Asked to change something, it
+  explains that it cannot and points at the screen that can.
+- **Authorization is enforced in PHP, per tool, against the calling user** —
+  the same permissions the REST API uses. A model cannot talk its way past
+  `Gate::denies()`, and a deactivated account gets nothing.
+- **PII masking** is on by default: the assistant sees `r•••@example.com`, not
+  the address. It can still find and describe the contact.
+- **Prompt injection.** Free text from CRM records is fenced in
+  `<<user_content>>` markers and the system prompt states that such content is
+  data, never instructions. A note reading "ignore previous instructions"
+  arrives as quoted content.
+- **Cost ceilings.** 10 chats/minute per user, at most 5 tool rounds per
+  question (tools are withdrawn on the final pass so the model must answer),
+  and a row cap on every tool. Token usage is stored per message.
+- Transcripts live in `ai_conversations` / `ai_messages`; `store: false` is sent
+  upstream so the provider is not asked to retain them as well.
+
+Every answer shows which tools ran and links the records it used, so a rep can
+check the source rather than trusting the summary.
+
 ### Authorization
 
 Spatie permissions named `<resource>.<action>` (e.g. `contacts.update`), granted

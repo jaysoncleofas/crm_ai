@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Activity;
+use App\Models\AiConversation;
 use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Deal;
@@ -36,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
             'pipeline' => Pipeline::class,
             'pipeline_stage' => PipelineStage::class,
             'tag' => Tag::class,
+            'ai_conversation' => AiConversation::class,
         ]);
 
         // Surface N+1 queries and typo'd attributes during development instead

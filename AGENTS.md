@@ -75,6 +75,23 @@ spatie/query-builder contract.
 Every list and form needs loading, empty and error states, and every mutation
 needs a toast or inline validation.
 
+## AI assistant
+
+`app/Services/Ai/` — `OpenAiClient` (Responses API transport), `CrmToolkit`
+(the read-only tool surface), `CrmAssistant` (the tool loop).
+
+Non-negotiables when touching it:
+- **Every tool checks permissions in PHP against the calling user.** Never rely
+  on the prompt to enforce access, and never add a tool that writes without
+  explicit sign-off.
+- Free text from records goes through `untrusted()` so it arrives fenced. The
+  system prompt treats fenced content as data.
+- Tool output is a compact projection, never a model — it bounds both tokens
+  and what leaves the database. Respect `ai.max_rows_per_tool`.
+- The provider's error text goes to the log, never to the client.
+
+Tests fake the API with `Http::fake()`; no key is needed to run them.
+
 ## Tests
 
 - `make test` — Pest, against its own `crm_testing` MySQL schema.

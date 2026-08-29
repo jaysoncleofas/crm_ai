@@ -73,5 +73,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         RateLimiter::for('mutations', fn (Request $request) => Limit::perMinute(60)
             ->by($request->user()?->id ?: $request->ip()));
+
+        // Each assistant turn is several paid upstream calls, so it is limited
+        // far more tightly than an ordinary write.
+        RateLimiter::for('assistant', fn (Request $request) => Limit::perMinute(10)
+            ->by('assistant:'.($request->user()?->id ?: $request->ip())));
     })
     ->create();

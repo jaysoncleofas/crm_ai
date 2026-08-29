@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\ActivityController;
+use App\Http\Controllers\Api\AssistantController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CompanyController;
@@ -31,6 +32,18 @@ Route::middleware(['auth:sanctum', EnsureUserIsActive::class])->group(function (
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+
+    // --- CRM assistant ------------------------------------------------------
+    // Read-only; every tool re-checks the caller's permissions. The chat route
+    // has its own limiter because each call costs money upstream.
+    Route::get('assistant/status', [AssistantController::class, 'status'])->name('assistant.status');
+    Route::get('assistant/conversations', [AssistantController::class, 'index'])->name('assistant.index');
+    Route::get('assistant/conversations/{conversation}', [AssistantController::class, 'show'])
+        ->whereNumber('conversation')->name('assistant.show');
+    Route::post('assistant/chat', [AssistantController::class, 'chat'])
+        ->middleware('throttle:assistant')->name('assistant.chat');
+    Route::delete('assistant/conversations/{conversation}', [AssistantController::class, 'destroy'])
+        ->whereNumber('conversation')->middleware('throttle:mutations')->name('assistant.destroy');
 
     // Reads
     Route::get('contacts', [ContactController::class, 'index'])->name('contacts.index');
