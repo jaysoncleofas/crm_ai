@@ -2,10 +2,13 @@ name: Deploy
 
 # Deploys Jayson CRM to production on every push to main.
 #
-# Required GitHub secrets:
+# Required GitHub repo secrets (Settings → Secrets and variables → Actions):
 #   SSH_HOST          e.g. 15.235.169.194
 #   SSH_USER          e.g. root
-#   SSH_PRIVATE_KEY   deploy private key (~/.ssh/fittrack_deploy_ed25519)
+#   SSH_PRIVATE_KEY   contents of ~/.ssh/fittrack_deploy_ed25519
+#
+# Optional:
+#   GIT_CLONE_TOKEN   PAT if GITHUB_TOKEN cannot clone this private repo
 
 on:
   push:
@@ -22,6 +25,28 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Verify deploy secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [ -z "$SSH_HOST" ]; then
+            echo "::error::Missing repository secret SSH_HOST (e.g. 15.235.169.194)"
+            missing=1
+          fi
+          if [ -z "$SSH_USER" ]; then
+            echo "::error::Missing repository secret SSH_USER (e.g. root)"
+            missing=1
+          fi
+          if [ -z "$SSH_PRIVATE_KEY" ]; then
+            echo "::error::Missing repository secret SSH_PRIVATE_KEY (deploy private key)"
+            missing=1
+          fi
+          exit "$missing"
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -41,14 +66,6 @@ jobs:
             if ! command -v docker >/dev/null 2>&1; then
               curl -fsSL https://get.docker.com | sh
             fi
-
-            dc() {
-              if docker info >/dev/null 2>&1; then
-                docker compose -f docker-compose.prod.yml "$@"
-              else
-                sudo docker compose -f docker-compose.prod.yml "$@"
-              fi
-            }
 
             mkdir -p "$DEPLOY_PATH"
 
@@ -85,39 +102,33 @@ jobs:
             fi
             rm -rf "$ENV_BAK"
 
-            if [ ! -f "$DEPLOY_PATH/.env" ]; then
-              echo "ERROR: $DEPLOY_PATH/.env is missing. Run deploy/scripts/bootstrap-server.sh once on the server."
-              exit 1
+            cd "$DEPLOY_PATH"
+
+            if [ ! -f .env ]; then
+              echo "Creating production .env from template..."
+              cp .env.production.example .env
+              DB_PASS="$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)"
+              sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${DB_PASS}/" .env
+              sed -i "s/^DB_ROOT_PASSWORD=.*/DB_ROOT_PASSWORD=${DB_PASS}/" .env
+              APP_KEY="base64:$(openssl rand -base64 32)"
+              sed -i "s/^APP_KEY=.*/APP_KEY=${APP_KEY}/" .env
             fi
 
-            if [ -f "$DEPLOY_PATH/deploy/nginx/crm.conf" ]; then
-              cp "$DEPLOY_PATH/deploy/nginx/crm-security.conf" /etc/nginx/snippets/crm-security.conf
-              cp "$DEPLOY_PATH/deploy/nginx/crm.conf" /etc/nginx/sites-available/crm
+            if grep -qE '^DB_USERNAME=(root|)$' .env; then
+              sed -i 's/^DB_USERNAME=.*/DB_USERNAME=crm/' .env
+            fi
+
+            if [ -f deploy/nginx/crm.conf ]; then
+              cp deploy/nginx/crm-security.conf /etc/nginx/snippets/crm-security.conf
+              cp deploy/nginx/crm.conf /etc/nginx/sites-available/crm
               ln -sf /etc/nginx/sites-available/crm /etc/nginx/sites-enabled/crm
               nginx -t && systemctl reload nginx
             fi
 
-            cd "$DEPLOY_PATH"
-            set -a
-            # shellcheck disable=SC1091
-            . ./.env
-            set +a
-
-            dc build app
-            dc build web
-            dc up -d
-
-            for _ in $(seq 1 30); do
-              if curl -fsS "http://127.0.0.1:${CRM_PORT:-8070}/up" >/dev/null 2>&1; then
-                break
-              fi
-              sleep 2
-            done
-
-            if ! curl -fsS "http://127.0.0.1:${CRM_PORT:-8070}/up" >/dev/null 2>&1; then
-              echo "Health check failed"
-              dc logs --tail=80 app web
-              exit 1
+            if ! certbot certificates 2>/dev/null | grep -q crm.jaysoncleofas.com; then
+              certbot --nginx -d crm.jaysoncleofas.com --non-interactive --agree-tos --register-unsafely-without-email || true
             fi
+
+            bash deploy/scripts/finish-deploy.sh "$DEPLOY_PATH"
 
             echo "Deploy OK — $(git rev-parse --short HEAD)"
