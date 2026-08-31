@@ -13,6 +13,7 @@ use App\Services\DealService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
@@ -91,40 +92,58 @@ class DemoDataSeeder extends Seeder
     /** @return array{admin: User, manager: User, reps: array<int, User>} */
     private function seedTeam(): array
     {
-        $admin = User::factory()->create([
-            'name' => 'Avery Quinn',
-            'email' => 'admin@crm.test',
-            'job_title' => 'Revenue Operations Lead',
-        ]);
+        $password = Hash::make('password');
+
+        $admin = User::firstOrCreate(
+            ['email' => 'admin@crm.test'],
+            [
+                'name' => 'Avery Quinn',
+                'password' => $password,
+                'job_title' => 'Revenue Operations Lead',
+                'is_active' => true,
+            ],
+        );
         $admin->assignRole('admin');
 
-        $manager = User::factory()->create([
-            'name' => 'Jordan Blake',
-            'email' => 'manager@crm.test',
-            'job_title' => 'Sales Manager',
-        ]);
+        $manager = User::firstOrCreate(
+            ['email' => 'manager@crm.test'],
+            [
+                'name' => 'Jordan Blake',
+                'password' => $password,
+                'job_title' => 'Sales Manager',
+                'is_active' => true,
+            ],
+        );
         $manager->assignRole('manager');
 
         $reps = collect([
             ['Riley Chen', 'rep@crm.test', 'Account Executive'],
             ['Sam Okafor', 'sam@crm.test', 'Account Executive'],
             ['Noa Feldman', 'noa@crm.test', 'Sales Development Rep'],
-        ])->map(function (array $rep): User {
-            $user = User::factory()->create([
-                'name' => $rep[0],
-                'email' => $rep[1],
-                'job_title' => $rep[2],
-            ]);
+        ])->map(function (array $rep) use ($password): User {
+            $user = User::firstOrCreate(
+                ['email' => $rep[1]],
+                [
+                    'name' => $rep[0],
+                    'password' => $password,
+                    'job_title' => $rep[2],
+                    'is_active' => true,
+                ],
+            );
             $user->assignRole('sales_rep');
 
             return $user;
         })->all();
 
-        $viewer = User::factory()->create([
-            'name' => 'Casey Morgan',
-            'email' => 'viewer@crm.test',
-            'job_title' => 'Finance Analyst',
-        ]);
+        $viewer = User::firstOrCreate(
+            ['email' => 'viewer@crm.test'],
+            [
+                'name' => 'Casey Morgan',
+                'password' => $password,
+                'job_title' => 'Finance Analyst',
+                'is_active' => true,
+            ],
+        );
         $viewer->assignRole('viewer');
 
         return ['admin' => $admin, 'manager' => $manager, 'reps' => $reps];

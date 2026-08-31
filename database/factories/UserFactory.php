@@ -25,13 +25,13 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
+            'name' => $this->fakeName(),
+            'email' => $this->fakeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
-            'job_title' => fake()->jobTitle(),
-            'phone' => fake()->phoneNumber(),
+            'job_title' => $this->fakeJobTitle(),
+            'phone' => $this->fakePhone(),
             'is_active' => true,
             // Declared so a freshly built model carries every column: strict mode
             // (preventAccessingMissingAttributes) rejects reads of unset attributes.
@@ -56,5 +56,27 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    private function fakeName(): string
+    {
+        return function_exists('fake') ? fake()->name() : 'User '.Str::random(6);
+    }
+
+    private function fakeEmail(): string
+    {
+        return function_exists('fake')
+            ? fake()->unique()->safeEmail()
+            : 'user'.Str::random(8).'@crm.test';
+    }
+
+    private function fakeJobTitle(): string
+    {
+        return function_exists('fake') ? fake()->jobTitle() : 'Account Executive';
+    }
+
+    private function fakePhone(): string
+    {
+        return function_exists('fake') ? fake()->phoneNumber() : '+1-555-'.random_int(1000, 9999);
     }
 }
